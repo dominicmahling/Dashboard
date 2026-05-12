@@ -65,7 +65,13 @@ else
                                         var s = steps[si];
                                         <div class="d-flex align-items-center gap-2 mb-1 p-1 rounded @(s.Completed ? "bg-success bg-opacity-10" : "")">
                                             <span class="badge @(s.Completed ? "bg-success" : "bg-secondary")">@(s.Completed ? "✓" : (si + 1).ToString())</span>
-                                            <span class="flex-grow-1 small">@s.Name</span>
+                                            <span class="flex-grow-1 small">
+                                                @s.Name
+                                                @if (!string.IsNullOrEmpty(s.Description))
+                                                {
+                                                    <br /><span class="text-muted" style="font-size:0.85em">@s.Description</span>
+                                                }
+                                            </span>
                                             @if (!s.Completed)
                                             {
                                                 <button class="btn btn-sm btn-outline-primary py-0 px-1" @onclick="() => QuickCompleteStep(s.Id)">Done</button>
@@ -127,7 +133,13 @@ else
                         var isCur = si == currentIdx && !s.Completed;
                         <div class="d-flex align-items-center gap-2 mb-1 p-1 rounded small @(isCur ? "current-step" : "") @(s.Completed ? "done-step" : "")">
                             <span class="badge rounded-pill @(s.Completed ? "bg-success" : isCur ? "bg-primary" : "bg-secondary")">@(s.Completed ? "✓" : (si + 1).ToString())</span>
-                            <span class="flex-grow-1">@s.Name</span>
+                            <div class="flex-grow-1">
+                                <span>@s.Name</span>
+                                @if (!string.IsNullOrEmpty(s.Description))
+                                {
+                                    <br /><small class="text-muted">@s.Description</small>
+                                }
+                            </div>
                             @if (isCur)
                             {
                                 <button class="btn btn-sm btn-primary py-0 px-2" @onclick="() => QuickCompleteStep(s.Id)">Complete</button>
