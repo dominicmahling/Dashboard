@@ -1,0 +1,68 @@
+## .NET
+*.dll
+*.pdb
+*.exe
+*.log
+*.user
+*.suo
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+*.ncb
+*.sdf
+*.bin
+*.obj
+*.cache
+*.generated.cs
+*.generated.vb
+*.generated.fs
+*.AssemblyAttributes.cs
+*.AssemblyAttributes.vb
+*.AssemblyAttributes.fs
+
+## Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+## Visual Studio cache/options
+.vs/
+*.vspscc
+*.vssscc
+
+## NuGet
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+*.nuget.props
+*.nuget.targets
+
+## Database files
+*.db
+*.db-journal
+
+## IDE
+.idea/
+*.swp
+*.swo
+*~
+
+## OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,94 @@
+@page "/topics"
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AppDbContext> DbFactory
+@rendermode InteractiveServer
+
+<PageTitle>Topics</PageTitle>
+
+<h1>Topics</h1>
+
+<a href="topics/new" class="btn btn-primary mb-3">New Topic</a>
+
+@if (topics == null)
+{
+    <p><em>Loading...</em></p>
+}
+else if (!topics.Any())
+{
+    <p>No topics yet. Create one to get started!</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Description</th>
+                <th>Articles</th>
+                <th>Created</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var topic in topics)
+            {
+                <tr>
+                    <td><a href="topics/@topic.Id" class="text-decoration-none">@topic.Title</a></td>
+                    <td>@(topic.Description?.Length > 50 ? topic.Description[..50] + "..." : topic.Description)</td>
+                    <td>@topic.ArticleCount</td>
+                    <td>@topic.CreatedAt.ToString("yyyy-MM-dd")</td>
+                    <td>
+                        <a href="topics/@topic.Id/edit" class="btn btn-sm btn-outline-secondary">Edit</a>
+                        <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteTopic(topic.Id)">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<TopicDto> topics = null!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTopics();
+    }
+
+    private async Task LoadTopics()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        topics = await db.Topics
+            .Select(t => new TopicDto
+            {
+                Id = t.Id,
+                Title = t.Title,
+                Description = t.Description,
+                CreatedAt = t.CreatedAt,
+                ArticleCount = t.Articles.Count
+            })
+            .ToListAsync();
+    }
+
+    private async Task DeleteTopic(int id)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var topic = await db.Topics.Include(t => t.Articles).FirstOrDefaultAsync(t => t.Id == id);
+        if (topic != null)
+        {
+            db.Articles.RemoveRange(topic.Articles);
+            db.Topics.Remove(topic);
+            await db.SaveChangesAsync();
+            await LoadTopics();
+        }
+    }
+
+    public class TopicDto
+    {
+        public int Id { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public int ArticleCount { get; set; }
+    }
+}

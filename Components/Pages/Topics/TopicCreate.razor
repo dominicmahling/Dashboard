@@ -1,0 +1,39 @@
+@page "/topics/new"
+@inject IDbContextFactory<AppDbContext> DbFactory
+@inject NavigationManager NavigationManager
+@rendermode InteractiveServer
+
+<PageTitle>New Topic</PageTitle>
+
+<h1>New Topic</h1>
+
+<EditForm Model="topic" FormName="new-topic" OnValidSubmit="HandleValidSubmit" class="mt-3">
+    <DataAnnotationsValidator />
+
+    <div class="mb-3">
+        <label class="form-label">Title</label>
+        <InputText @bind-Value="topic.Title" class="form-control" />
+        <ValidationMessage For="@(() => topic.Title)" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Description</label>
+        <InputTextArea @bind-Value="topic.Description" class="form-control" rows="3" />
+        <ValidationMessage For="@(() => topic.Description)" />
+    </div>
+
+    <button type="submit" class="btn btn-primary">Create</button>
+    <a href="/topics" class="btn btn-secondary ms-2">Cancel</a>
+</EditForm>
+
+@code {
+    private Topic topic = new();
+
+    private async Task HandleValidSubmit()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        db.Topics.Add(topic);
+        await db.SaveChangesAsync();
+        NavigationManager.NavigateTo("/topics");
+    }
+}

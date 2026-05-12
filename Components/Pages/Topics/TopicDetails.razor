@@ -1,0 +1,86 @@
+@page "/topics/{id:int}"
+@inject IDbContextFactory<AppDbContext> DbFactory
+@inject NavigationManager NavigationManager
+@rendermode InteractiveServer
+
+<PageTitle>Topic Details</PageTitle>
+
+@if (topic == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <h1>@topic.Title</h1>
+
+    @if (!string.IsNullOrEmpty(topic.Description))
+    {
+        <p class="text-muted">@topic.Description</p>
+    }
+
+    <div class="mb-3">
+        <a href="topics/@topic.Id/articles/new" class="btn btn-primary">New Article</a>
+        <a href="/topics/@topic.Id/edit" class="btn btn-outline-secondary ms-2">Edit Topic</a>
+    </div>
+
+    @if (!topic.Articles.Any())
+    {
+        <p>No articles yet.</p>
+    }
+    else
+    {
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Updated</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var article in topic.Articles)
+                {
+                    <tr>
+                        <td><a href="/articles/@article.Id" class="text-decoration-none">@article.Title</a></td>
+                        <td>@article.UpdatedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                        <td>
+                            <a href="/articles/@article.Id/edit" class="btn btn-sm btn-outline-secondary">Edit</a>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteArticle(article.Id)">Delete</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private Topic? topic;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        topic = await db.Topics
+            .Include(t => t.Articles)
+            .FirstOrDefaultAsync(t => t.Id == Id);
+
+        if (topic == null)
+        {
+            NavigationManager.NavigateTo("/topics");
+        }
+    }
+
+    private async Task DeleteArticle(int id)
+    {
+        if (topic == null) return;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var article = await db.Articles.FindAsync(id);
+        if (article != null)
+        {
+            db.Articles.Remove(article);
+            await db.SaveChangesAsync();
+            topic.Articles = await db.Articles.Where(a => a.TopicId == Id).ToListAsync();
+        }
+    }
+}
