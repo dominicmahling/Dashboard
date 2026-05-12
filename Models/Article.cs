@@ -21,4 +21,6 @@ public class Article
     public Topic Topic { get; set; } = null!;
 
     public ICollection<WorkflowStep> WorkflowSteps { get; set; } = new List<WorkflowStep>();
+
+    public ICollection<Workflow> Workflows { get; set; } = new List<Workflow>();
 }

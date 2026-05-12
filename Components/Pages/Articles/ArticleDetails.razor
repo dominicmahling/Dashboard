@@ -24,107 +24,147 @@ else
         &middot; Updated: @article.UpdatedAt.ToString("yyyy-MM-dd HH:mm")
     </p>
 
-    <div class="article-content">
-        @((MarkupString)FormatContent(article.Content))
+    @foreach (var segment in contentSegments)
+    {
+        if (!string.IsNullOrWhiteSpace(segment.Text))
+        {
+            <div class="article-content mb-4">
+                @((MarkupString)FormatContent(segment.Text))
+            </div>
+        }
+        @if (segment.Workflow != null)
+        {
+            <div class="workflow-block mt-4 mb-4">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span class="fw-bold">@segment.Workflow.Name</span>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-warning" @onclick="() => ResetWorkflowByName(segment.Workflow.Name)">Reset</button>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteWorkflow(segment.Workflow.Id)">Delete</button>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="workflow-list">
+                            @{
+                                var wfl = segment.Workflow;
+                                var wflSteps = wfl.Steps.ToList();
+                                var wflCurrentIdx = wflSteps.FindIndex(s => !s.Completed);
+                                if (wflCurrentIdx == -1 && wflSteps.Any()) wflCurrentIdx = wflSteps.Count - 1;
+                            }
+                            @for (int i = 0; i < wflSteps.Count; i++)
+                            {
+                                var step = wflSteps[i];
+                                var isCurrent = i == wflCurrentIdx && !step.Completed;
+                                <div class="workflow-step-item @(isCurrent ? "current" : "") @(step.Completed ? "done" : "")">
+                                    <div class="step-header">
+                                        <div class="step-indicator @(isCurrent ? "active" : "") @(step.Completed ? "completed" : "")">
+                                            @if (step.Completed)
+                                            {
+                                                <span>&#10003;</span>
+                                            }
+                                            else
+                                            {
+                                                @(i + 1)
+                                            }
+                                        </div>
+                                        <div class="step-info">
+                                            <h5 class="step-name mb-0">@step.Name</h5>
+                                            @if (!string.IsNullOrEmpty(step.Description))
+                                            {
+                                                <p class="step-desc mb-0">@step.Description</p>
+                                            }
+                                        </div>
+                                        <div class="step-actions">
+                                            @if (isCurrent)
+                                            {
+                                                <button class="btn btn-primary btn-sm" @onclick="() => CompleteStep(step.Id)">Mark Complete</button>
+                                            }
+                                            else if (step.Completed)
+                                            {
+                                                <span class="badge bg-success">Done</span>
+                                            }
+                                            <button class="btn btn-sm btn-outline-danger ms-1" @onclick="() => RemoveStep(step.Id)" title="Remove">&#00d7;</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                @if (i < wflSteps.Count - 1)
+                                {
+                                    <div class="step-divider @(step.Completed ? "completed" : "")"></div>
+                                }
+                            }
+                        </div>
+                        <div class="p-3 border-top">
+                            <div class="row g-2">
+                                <div class="col-md-5">
+                                    <input type="text" class="form-control form-control-sm" placeholder="Step name" @bind="newStepName" />
+                                </div>
+                                <div class="col-md-5">
+                                    <input type="text" class="form-control form-control-sm" placeholder="Description (optional)" @bind="newStepDesc" />
+                                </div>
+                                <div class="col-md-2">
+                                    <button class="btn btn-success btn-sm w-100" @onclick="() => AddStep(wfl.Name)">Add</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+
+    <div class="mt-4 p-3 border rounded">
+        <h6>Add Workflow Block</h6>
+        <p class="text-muted small mb-3">To place a workflow within your article content, add the tag <code>[WORKFLOW:name]</code> where you want it to appear in your article text.</p>
+        <div class="row g-2">
+            <div class="col-md-4">
+                <input type="text" class="form-control form-control-sm" placeholder="Workflow name (e.g. Setup)" @bind="newWorkflowName" />
+            </div>
+            <div class="col-md-3">
+                <input type="number" class="form-control form-control-sm" placeholder="Position" @bind="newWorkflowPosition" min="0" />
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-success btn-sm w-100" @onclick="AddWorkflowBlock">Add</button>
+            </div>
+        </div>
+
+        @if (workflows.Any())
+        {
+            <div class="table-responsive mt-3">
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Position</th>
+                            <th>Steps</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var wf in workflows.OrderBy(w => w.Position))
+                        {
+                            <tr>
+                                <td>@wf.Name</td>
+                                <td>@wf.Position</td>
+                                <td>@wf.Steps.Count</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteWorkflow(wf.Id)">Delete</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
     </div>
-
-    @if (steps.Any())
-    {
-        <div class="mt-5">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h4>Workflow</h4>
-                <button class="btn btn-outline-warning btn-sm" @onclick="ResetWorkflow">Reset</button>
-            </div>
-
-            <div class="workflow-list">
-                @foreach (var (step, index) in steps.Select((s, i) => (s, i)))
-                {
-                    var isCurrent = index == currentStep && !step.Completed;
-                    <div class="workflow-step-item @(isCurrent ? "current" : "") @(step.Completed ? "done" : "")">
-                        <div class="step-header">
-                            <div class="step-indicator @(isCurrent ? "active" : "") @(step.Completed ? "completed" : "")">
-                                @if (step.Completed)
-                                {
-                                    <span>&#10003;</span>
-                                }
-                                else
-                                {
-                                    @(index + 1)
-                                }
-                            </div>
-                            <div class="step-info">
-                                <h5 class="step-name">@step.Name</h5>
-                                @if (!string.IsNullOrEmpty(step.Description))
-                                {
-                                    <p class="step-desc">@step.Description</p>
-                                }
-                            </div>
-                            <div class="step-actions">
-                                @if (isCurrent)
-                                {
-                                    <button class="btn btn-primary btn-sm" @onclick="() => CompleteStep(index)">Mark Complete</button>
-                                }
-                                else if (step.Completed)
-                                {
-                                    <span class="badge bg-success">Done</span>
-                                }
-                                <button class="btn btn-sm btn-outline-danger ms-1" @onclick="() => RemoveStepByIndex(index)" title="Remove step">&times;</button>
-                            </div>
-                        </div>
-                    </div>
-                    @if (index < steps.Count - 1)
-                    {
-                        <div class="step-divider @(step.Completed ? "completed" : "")"></div>
-                    }
-                }
-            </div>
-
-            <div class="card mt-4">
-                <div class="card-body">
-                    <h6>Add Step</h6>
-                    <div class="row g-2">
-                        <div class="col-md-4">
-                            <input type="text" class="form-control" placeholder="Step name" @bind="newStepName" />
-                        </div>
-                        <div class="col-md-6">
-                            <input type="text" class="form-control" placeholder="Description (optional)" @bind="newStepDesc" />
-                        </div>
-                        <div class="col-md-2">
-                            <button class="btn btn-success w-100" @onclick="AddStep">Add</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    }
-    else
-    {
-        <div class="mt-4">
-            <div class="card">
-                <div class="card-body">
-                    <h6>Add Workflow Steps</h6>
-                    <div class="row g-2">
-                        <div class="col-md-4">
-                            <input type="text" class="form-control" placeholder="Step name" @bind="newStepName" />
-                        </div>
-                        <div class="col-md-6">
-                            <input type="text" class="form-control" placeholder="Description (optional)" @bind="newStepDesc" />
-                        </div>
-                        <div class="col-md-2">
-                            <button class="btn btn-success w-100" @onclick="AddStep">Add</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    }
 }
 
 @code {
     [Parameter] public int Id { get; set; }
     private Article? article;
-    private List<WorkflowStep> steps = new();
-    private int currentStep = 0;
+    private List<Workflow> workflows = new();
+    private List<ContentSegment> contentSegments = new();
+    private string newWorkflowName = "";
+    private int newWorkflowPosition;
     private string newStepName = "";
     private string newStepDesc = "";
 
@@ -140,102 +180,214 @@ else
 
         await db.Entry(article).Reference(a => a.Topic).LoadAsync();
 
-        steps = await db.WorkflowSteps
-            .Where(ws => ws.ArticleId == Id)
-            .OrderBy(ws => ws.Order)
+        workflows = await db.Workflows
+            .Where(w => w.ArticleId == Id)
             .ToListAsync();
 
-        currentStep = steps.FindIndex(s => !s.Completed);
-        if (currentStep == -1 && steps.Any())
+        foreach (var wf in workflows)
         {
-            currentStep = steps.Count - 1;
+            var steps = await db.WorkflowSteps
+                .Where(s => s.WorkflowName == wf.Name && s.ArticleId == Id)
+                .OrderBy(s => s.Order)
+                .ToListAsync();
+            wf.Steps = steps;
+        }
+
+        BuildContentSegments();
+    }
+
+    private void BuildContentSegments()
+    {
+        contentSegments.Clear();
+        var content = article?.Content ?? "";
+
+        if (!content.Contains("[WORKFLOW:"))
+        {
+            if (!string.IsNullOrWhiteSpace(content))
+            {
+                contentSegments.Add(new ContentSegment { Text = content });
+            }
+            foreach (var wf in workflows.OrderBy(w => w.Position))
+            {
+                contentSegments.Add(new ContentSegment { Workflow = wf });
+            }
+            return;
+        }
+
+        var parts = content.Split(new[] { "[WORKFLOW:" }, StringSplitOptions.None).ToList();
+
+        for (int i = 0; i < parts.Count; i++)
+        {
+            var part = parts[i];
+            if (i == 0)
+            {
+                if (!string.IsNullOrWhiteSpace(part))
+                {
+                    contentSegments.Add(new ContentSegment { Text = part.Trim() });
+                }
+            }
+            else
+            {
+                var colonIndex = part.IndexOf(']');
+                if (colonIndex > 0)
+                {
+                    var wfName = part[..colonIndex];
+                    var afterText = part[(colonIndex + 1)..];
+
+                    var wf = workflows.FirstOrDefault(w => w.Name == wfName);
+                    if (wf != null)
+                    {
+                        contentSegments.Add(new ContentSegment { Workflow = wf });
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(afterText))
+                    {
+                        contentSegments.Add(new ContentSegment { Text = afterText.Trim() });
+                    }
+                }
+            }
         }
     }
 
-    private async Task CompleteStep(int index)
+    private async Task CompleteStep(int stepId)
     {
-        if (index < 0 || index >= steps.Count) return;
-
-        steps[index].Completed = true;
-        steps[index].CompletedAt = DateTime.UtcNow;
-
         await using var db = await DbFactory.CreateDbContextAsync();
-        db.WorkflowSteps.Update(steps[index]);
-        await db.SaveChangesAsync();
-
-        var nextIncomplete = steps.FindIndex(s => !s.Completed);
-        currentStep = nextIncomplete == -1 ? steps.Count - 1 : nextIncomplete;
-
-        if (nextIncomplete == -1)
+        var step = await db.WorkflowSteps.FindAsync(stepId);
+        if (step != null)
         {
-            await Task.Delay(1000);
-            await ResetWorkflow();
+            step.Completed = true;
+            step.CompletedAt = DateTime.UtcNow;
+            await db.SaveChangesAsync();
+        }
+
+        foreach (var wf in workflows)
+        {
+            var s = wf.Steps.FirstOrDefault(x => x.Id == stepId);
+            if (s != null) { s.Completed = true; s.CompletedAt = DateTime.UtcNow; }
         }
 
         StateHasChanged();
     }
 
-    private async Task AddStep()
+    private async Task AddStep(string workflowName)
     {
-        if (string.IsNullOrWhiteSpace(newStepName) || article == null) return;
+        if (string.IsNullOrWhiteSpace(newStepName)) return;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var wf = workflows.FirstOrDefault(w => w.Name == workflowName);
+        if (wf == null) return;
 
         var step = new WorkflowStep
         {
             Name = newStepName.Trim(),
             Description = newStepDesc.Trim(),
-            Order = steps.Count,
-            ArticleId = article.Id
+            Order = wf.Steps.Count,
+            WorkflowName = workflowName,
+            ArticleId = Id
         };
 
-        await using var db = await DbFactory.CreateDbContextAsync();
         db.WorkflowSteps.Add(step);
         await db.SaveChangesAsync();
 
-        steps.Add(step);
+        wf.Steps.Add(step);
         newStepName = "";
         newStepDesc = "";
         StateHasChanged();
     }
 
-    private async Task RemoveStepByIndex(int index)
+    private async Task RemoveStep(int stepId)
     {
-        if (index < 0 || index >= steps.Count) return;
-
         await using var db = await DbFactory.CreateDbContextAsync();
-        var step = await db.WorkflowSteps.FindAsync(steps[index].Id);
+        var step = await db.WorkflowSteps.FindAsync(stepId);
         if (step != null)
         {
             db.WorkflowSteps.Remove(step);
             await db.SaveChangesAsync();
-            steps.RemoveAt(index);
-
-            if (currentStep >= steps.Count)
-            {
-                currentStep = Math.Max(0, steps.Count - 1);
-            }
-
-            StateHasChanged();
         }
+
+        foreach (var wf in workflows)
+        {
+            var toRemove = wf.Steps.FirstOrDefault(s => s.Id == stepId);
+            if (toRemove != null)
+            {
+                var list = wf.Steps.ToList();
+                list.Remove(toRemove);
+                wf.Steps = list;
+            }
+        }
+
+        StateHasChanged();
     }
 
-    private async Task ResetWorkflow()
+    private async Task ResetWorkflowByName(string workflowName)
     {
         await using var db = await DbFactory.CreateDbContextAsync();
-        var workflowSteps = await db.WorkflowSteps.Where(ws => ws.ArticleId == Id).ToListAsync();
-        foreach (var step in workflowSteps)
-        {
-            step.Completed = false;
-            step.CompletedAt = null;
-        }
-        await db.SaveChangesAsync();
+        var steps = await db.WorkflowSteps
+            .Where(s => s.WorkflowName == workflowName && s.ArticleId == Id)
+            .ToListAsync();
 
         foreach (var step in steps)
         {
             step.Completed = false;
             step.CompletedAt = null;
         }
+        await db.SaveChangesAsync();
 
-        currentStep = 0;
+        var wf = workflows.FirstOrDefault(w => w.Name == workflowName);
+        if (wf != null)
+        {
+            foreach (var step in wf.Steps)
+            {
+                step.Completed = false;
+                step.CompletedAt = null;
+            }
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task DeleteWorkflow(int workflowId)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var wf = workflows.FirstOrDefault(w => w.Id == workflowId);
+        if (wf == null) return;
+
+        var steps = await db.WorkflowSteps
+            .Where(s => s.WorkflowName == wf.Name && s.ArticleId == Id)
+            .ToListAsync();
+
+        db.WorkflowSteps.RemoveRange(steps);
+        db.Workflows.Remove(wf);
+        await db.SaveChangesAsync();
+
+        workflows.Remove(wf);
+        BuildContentSegments();
+        StateHasChanged();
+    }
+
+    private async Task AddWorkflowBlock()
+    {
+        if (string.IsNullOrWhiteSpace(newWorkflowName)) return;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        var wf = new Workflow
+        {
+            Name = newWorkflowName.Trim(),
+            Position = newWorkflowPosition,
+            ArticleId = Id
+        };
+
+        db.Workflows.Add(wf);
+        await db.SaveChangesAsync();
+
+        wf.Steps = new List<WorkflowStep>();
+        workflows.Add(wf);
+
+        workflows = workflows.OrderBy(w => w.Position).ToList();
+        BuildContentSegments();
+
+        newWorkflowName = "";
         StateHasChanged();
     }
 
@@ -247,6 +399,13 @@ else
         var a = await db.Articles.FindAsync(article.Id);
         if (a != null)
         {
+            var wfs = await db.Workflows.Where(w => w.ArticleId == article.Id).ToListAsync();
+            foreach (var wf in wfs)
+            {
+                var steps = await db.WorkflowSteps.Where(s => s.WorkflowName == wf.Name && s.ArticleId == article.Id).ToListAsync();
+                db.WorkflowSteps.RemoveRange(steps);
+            }
+            db.Workflows.RemoveRange(wfs);
             db.Articles.Remove(a);
             await db.SaveChangesAsync();
         }
@@ -257,5 +416,11 @@ else
     {
         if (string.IsNullOrEmpty(content)) return "";
         return System.Net.WebUtility.HtmlEncode(content).Replace("\n", "<br>");
+    }
+
+    private class ContentSegment
+    {
+        public string? Text { get; set; }
+        public Workflow? Workflow { get; set; }
     }
 }

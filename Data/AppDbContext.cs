@@ -10,4 +10,5 @@ public class AppDbContext : DbContext
     public DbSet<Topic> Topics => Set<Topic>();
     public DbSet<Article> Articles => Set<Article>();
     public DbSet<WorkflowStep> WorkflowSteps => Set<WorkflowStep>();
+    public DbSet<Workflow> Workflows => Set<Workflow>();
 }

@@ -19,7 +19,8 @@ public class WorkflowStep
 
     public DateTime? CompletedAt { get; set; }
 
-    public int ArticleId { get; set; }
+    [MaxLength(100)]
+    public string WorkflowName { get; set; } = string.Empty;
 
-    public Article Article { get; set; } = null!;
+    public int ArticleId { get; set; }
 }
