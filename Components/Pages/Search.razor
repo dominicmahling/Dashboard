@@ -1,0 +1,85 @@
+@page "/search"
+@inject IDbContextFactory<AppDbContext> DbFactory
+@rendermode InteractiveServer
+
+<PageTitle>Search</PageTitle>
+
+<h1>Search</h1>
+
+<div class="mt-3">
+    <div class="input-group input-group-lg">
+        <input type="text" class="form-control" placeholder="Search topics and articles..." @bind="query" @onkeydown="HandleKeyDown" />
+        <button class="btn btn-primary" @onclick="RunSearch">Search</button>
+    </div>
+</div>
+
+@if (results.Any())
+{
+    <div class="mt-4">
+        <h5>@results.Count result(s)</h5>
+        <div class="list-group mt-2">
+            @foreach (var r in results)
+            {
+                <div class="list-group-item list-group-item-action">
+                    <div class="d-flex w-100 justify-content-between">
+                        <a href="@r.Url" class="text-decoration-none fw-bold">@r.Title</a>
+                        <small class="text-muted">@r.Type</small>
+                    </div>
+                    @if (!string.IsNullOrEmpty(r.Preview))
+                    {
+                        <p class="mb-1 text-muted small">@r.Preview</p>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}
+else if (searched)
+{
+    <p class="text-muted mt-3">No results found.</p>
+}
+
+@code {
+    private string query = "";
+    private bool searched;
+    private List<SearchResult> results = new();
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await RunSearch();
+    }
+
+    private async Task RunSearch()
+    {
+        if (string.IsNullOrWhiteSpace(query)) return;
+        searched = true;
+        var q = query.ToLower();
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        var topicResults = await db.Topics
+            .Where(t => t.Title.ToLower().Contains(q) || (t.Description != null && t.Description.ToLower().Contains(q)))
+            .Select(t => new SearchResult { Type = "Topic", Title = t.Title, Preview = t.Description, Url = $"/topics/{t.Id}" })
+            .ToListAsync();
+
+        var articleResults = await db.Articles
+            .Where(a => a.Title.ToLower().Contains(q) || (a.Content != null && a.Content.ToLower().Contains(q)))
+            .ToListAsync();
+
+        results = topicResults.Concat(articleResults.Select(a => new SearchResult
+        {
+            Type = "Article",
+            Title = a.Title,
+            Preview = a.Content != null && a.Content.Length > 150 ? a.Content.Substring(0, 150) + "..." : a.Content,
+            Url = $"/articles/{a.Id}"
+        })).ToList();
+    }
+
+    private class SearchResult
+    {
+        public string Type { get; set; } = "";
+        public string Title { get; set; } = "";
+        public string? Preview { get; set; }
+        public string Url { get; set; } = "";
+    }
+}

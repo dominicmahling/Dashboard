@@ -1,0 +1,45 @@
+@page "/topics/{topicId:int}/articles/new"
+@inject IDbContextFactory<AppDbContext> DbFactory
+@inject NavigationManager NavigationManager
+@rendermode InteractiveServer
+
+<PageTitle>New Article</PageTitle>
+
+<h1>New Article</h1>
+
+<EditForm Model="article" FormName="new-article" OnValidSubmit="HandleValidSubmit" class="mt-3">
+    <DataAnnotationsValidator />
+
+    <div class="mb-3">
+        <label class="form-label">Title</label>
+        <InputText @bind-Value="article.Title" class="form-control" />
+        <ValidationMessage For="@(() => article.Title)" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Content</label>
+        <InputTextArea @bind-Value="article.Content" class="form-control" rows="12" />
+        <ValidationMessage For="@(() => article.Content)" />
+    </div>
+
+    <button type="submit" class="btn btn-primary">Create</button>
+    <a href="/topics/@TopicId" class="btn btn-secondary ms-2">Cancel</a>
+</EditForm>
+
+@code {
+    [Parameter] public int TopicId { get; set; }
+    private Article article = new();
+
+    protected override void OnInitialized()
+    {
+        article.TopicId = TopicId;
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        db.Articles.Add(article);
+        await db.SaveChangesAsync();
+        NavigationManager.NavigateTo($"/topics/{TopicId}");
+    }
+}

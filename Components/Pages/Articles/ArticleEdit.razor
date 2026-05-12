@@ -1,0 +1,59 @@
+@page "/articles/{id:int}/edit"
+@inject IDbContextFactory<AppDbContext> DbFactory
+@inject NavigationManager NavigationManager
+@rendermode InteractiveServer
+
+<PageTitle>Edit Article</PageTitle>
+
+<h1>Edit Article</h1>
+
+@if (article == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <EditForm Model="article" FormName="edit-article" OnValidSubmit="HandleValidSubmit" class="mt-3">
+        <DataAnnotationsValidator />
+
+        <div class="mb-3">
+            <label class="form-label">Title</label>
+            <InputText @bind-Value="article.Title" class="form-control" />
+            <ValidationMessage For="@(() => article.Title)" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Content</label>
+            <InputTextArea @bind-Value="article.Content" class="form-control" rows="12" />
+            <ValidationMessage For="@(() => article.Content)" />
+        </div>
+
+        <button type="submit" class="btn btn-primary">Save</button>
+        <a href="/articles/@article.Id" class="btn btn-secondary ms-2">Cancel</a>
+    </EditForm>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private Article? article;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        article = await db.Articles.FindAsync(Id);
+        if (article == null)
+        {
+            NavigationManager.NavigateTo("/topics");
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        if (article == null) return;
+        article.UpdatedAt = DateTime.UtcNow;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        db.Articles.Update(article);
+        await db.SaveChangesAsync();
+        NavigationManager.NavigateTo($"/articles/{article.Id}");
+    }
+}

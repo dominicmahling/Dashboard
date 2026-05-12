@@ -1,0 +1,69 @@
+@page "/articles/{id:int}"
+@inject IDbContextFactory<AppDbContext> DbFactory
+@inject NavigationManager NavigationManager
+@rendermode InteractiveServer
+
+<PageTitle>@(article?.Title ?? "Article")</PageTitle>
+
+@if (article == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1>@article.Title</h1>
+        <div>
+            <a href="/articles/@article.Id/edit" class="btn btn-outline-secondary">Edit</a>
+            <button class="btn btn-outline-danger ms-2" @onclick="DeleteArticle">Delete</button>
+        </div>
+    </div>
+
+    <p class="text-muted mb-4">
+        Topic: <a href="/topics/@article.TopicId" class="text-decoration-none">@article.Topic?.Title</a>
+        &middot; Updated: @article.UpdatedAt.ToString("yyyy-MM-dd HH:mm")
+    </p>
+
+    <div class="article-content">
+        @((MarkupString)FormatContent(article.Content))
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private Article? article;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        article = await db.Articles.FindAsync(Id);
+        if (article != null)
+        {
+            await db.Entry(article).Reference(a => a.Topic).LoadAsync();
+        }
+        else
+        {
+            NavigationManager.NavigateTo("/topics");
+        }
+    }
+
+    private async Task DeleteArticle()
+    {
+        if (article == null) return;
+        var topicId = article.TopicId;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var a = await db.Articles.FindAsync(article.Id);
+        if (a != null)
+        {
+            db.Articles.Remove(a);
+            await db.SaveChangesAsync();
+        }
+        NavigationManager.NavigateTo($"/topics/{topicId}");
+    }
+
+    private static string FormatContent(string? content)
+    {
+        if (string.IsNullOrEmpty(content)) return "";
+        return System.Net.WebUtility.HtmlEncode(content).Replace("\n", "<br>");
+    }
+}
