@@ -55,26 +55,42 @@ else
                             var steps = f.Steps.ToList();
                             if (steps.Any())
                             {
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <small class="text-muted">@steps.Count step(s)</small>
+                                    <button class="btn btn-sm btn-outline-warning py-0" @onclick="() => ResetWorkflow(f.Id)">Reset all</button>
+                                </div>
                                 <div class="mb-1">
                                     @for (int si = 0; si < steps.Count; si++)
                                     {
                                         var s = steps[si];
                                         <div class="d-flex align-items-center gap-2 mb-1 p-1 rounded @(s.Completed ? "bg-success bg-opacity-10" : "")">
                                             <span class="badge @(s.Completed ? "bg-success" : "bg-secondary")">@(s.Completed ? "✓" : (si + 1).ToString())</span>
-                                            <span class="flex-grow-1 small">@s.Name@(string.IsNullOrEmpty(s.Description) ? "" : $" - {s.Description}")</span>
+                                            <span class="flex-grow-1 small">@s.Name</span>
                                             @if (!s.Completed)
                                             {
                                                 <button class="btn btn-sm btn-outline-primary py-0 px-1" @onclick="() => QuickCompleteStep(s.Id)">Done</button>
+                                            }
+                                            @if (s.Completed)
+                                            {
+                                                <small class="text-muted" title="Completed @(s.CompletedAt?.ToString("yyyy-MM-dd HH:mm") ?? "")">&#10003;</small>
                                             }
                                             <button class="btn btn-sm btn-outline-danger py-0 px-1" @onclick="() => QuickRemoveStep(s.Id)">&times;</button>
                                         </div>
                                     }
                                 </div>
                             }
-                            <div class="input-group input-group-sm">
-                                <input type="text" class="form-control" placeholder="Step name" @bind="newStepName" />
-                                <input type="text" class="form-control" placeholder="Description" @bind="newStepDesc" />
-                                <button class="btn btn-success" @onclick="() => QuickAddStep(f.Id)">Add</button>
+                            <div class="mt-1">
+                                <div class="row g-1">
+                                    <div class="col-12">
+                                        <input type="text" class="form-control form-control-sm" placeholder="Step name" @bind="newStepName" />
+                                    </div>
+                                    <div class="col-8">
+                                        <textarea class="form-control form-control-sm" rows="2" placeholder="Description (optional)" @bind="newStepDesc"></textarea>
+                                    </div>
+                                    <div class="col-4 d-flex align-items-end">
+                                        <button class="btn btn-success btn-sm w-100" @onclick="() => QuickAddStep(f.Id)">Add</button>
+                                    </div>
+                                </div>
                             </div>
                         }
                     </div>
@@ -94,30 +110,33 @@ else
                 {
                     <div class="mb-3">@((MarkupString)FormatContent(field.Content))</div>
                 }
-                else if (field.FieldType == "workflow")
+                else if (field.FieldType == "workflow" && field.Steps.Any())
                 {
                     var steps = field.Steps.ToList();
-                    @if (steps.Any())
+                    var currentIdx = steps.FindIndex(s => !s.Completed);
+                    if (currentIdx == -1 && steps.Any()) currentIdx = steps.Count - 1;
+                    @if (steps.Any(s => s.Completed))
                     {
-                        var currentIdx = steps.FindIndex(s => !s.Completed);
-                        if (currentIdx == -1 && steps.Any()) currentIdx = steps.Count - 1;
-                        @for (int si = 0; si < steps.Count; si++)
-                        {
-                            var s = steps[si];
-                            var isCur = si == currentIdx && !s.Completed;
-                            <div class="d-flex align-items-center gap-2 mb-1 p-1 rounded small @(isCur ? "current-step" : "") @(s.Completed ? "done-step" : "")">
-                                <span class="badge rounded-pill @(s.Completed ? "bg-success" : isCur ? "bg-primary" : "bg-secondary")">@(s.Completed ? "✓" : (si + 1).ToString())</span>
-                                <span class="flex-grow-1">@s.Name</span>
-                                @if (isCur)
-                                {
-                                    <button class="btn btn-sm btn-primary py-0 px-2" @onclick="() => QuickCompleteStep(s.Id)">Complete</button>
-                                }
-                                else if (s.Completed)
-                                {
-                                    <span class="badge bg-success bg-opacity-25 text-success-emphasis">Done</span>
-                                }
-                            </div>
-                        }
+                        <div class="d-flex justify-content-end mb-1">
+                            <button class="btn btn-sm btn-outline-warning py-0" @onclick="() => ResetWorkflow(field.Id)">Reset all</button>
+                        </div>
+                    }
+                    @for (int si = 0; si < steps.Count; si++)
+                    {
+                        var s = steps[si];
+                        var isCur = si == currentIdx && !s.Completed;
+                        <div class="d-flex align-items-center gap-2 mb-1 p-1 rounded small @(isCur ? "current-step" : "") @(s.Completed ? "done-step" : "")">
+                            <span class="badge rounded-pill @(s.Completed ? "bg-success" : isCur ? "bg-primary" : "bg-secondary")">@(s.Completed ? "✓" : (si + 1).ToString())</span>
+                            <span class="flex-grow-1">@s.Name</span>
+                            @if (isCur)
+                            {
+                                <button class="btn btn-sm btn-primary py-0 px-2" @onclick="() => QuickCompleteStep(s.Id)">Complete</button>
+                            }
+                            else if (s.Completed)
+                            {
+                                <span class="text-muted small">Done @(s.CompletedAt?.ToString("MMM dd HH:mm") ?? "")</span>
+                            }
+                        </div>
                     }
                 }
             }
@@ -237,6 +256,7 @@ else
         {
             step.Completed = !step.Completed;
             step.CompletedAt = step.Completed ? DateTime.UtcNow : null;
+            step.CompletedBy = step.Completed ? "local" : null;
             await db.SaveChangesAsync();
         }
         foreach (var f in fields)
@@ -246,8 +266,34 @@ else
             {
                 s.Completed = !s.Completed;
                 s.CompletedAt = s.Completed ? DateTime.UtcNow : null;
+                s.CompletedBy = s.Completed ? "local" : null;
             }
         }
+        StateHasChanged();
+    }
+
+    private async Task ResetWorkflow(int fieldId)
+    {
+        var field = fields.FirstOrDefault(f => f.Id == fieldId);
+        if (field == null) return;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var steps = await db.WorkflowSteps.Where(s => s.ArticleFieldId == fieldId).ToListAsync();
+        foreach (var s in steps)
+        {
+            s.Completed = false;
+            s.CompletedAt = null;
+            s.CompletedBy = null;
+        }
+        await db.SaveChangesAsync();
+
+        foreach (var s in field.Steps)
+        {
+            s.Completed = false;
+            s.CompletedAt = null;
+            s.CompletedBy = null;
+        }
+
         StateHasChanged();
     }
 
@@ -367,12 +413,12 @@ else
         var a = await db.Articles.FindAsync(article.Id);
         if (a != null)
         {
-            var fields = await db.ArticleFields.Include(f => f.Steps).Where(f => f.ArticleId == article.Id).ToListAsync();
-            foreach (var f in fields)
+            var articleFields = await db.ArticleFields.Include(f => f.Steps).Where(f => f.ArticleId == article.Id).ToListAsync();
+            foreach (var f in articleFields)
             {
                 db.WorkflowSteps.RemoveRange(f.Steps);
             }
-            db.ArticleFields.RemoveRange(fields);
+            db.ArticleFields.RemoveRange(articleFields);
             db.Articles.Remove(a);
             await db.SaveChangesAsync();
         }
