@@ -56,36 +56,40 @@ else
                             if (steps.Any())
                             {
                                 <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <small class="text-muted">@steps.Count step(s)</small>
+                                    <small class="text-muted">@steps.Count step(s) &middot; @steps.Count(s => s.Completed) completed</small>
                                     <button class="btn btn-sm btn-outline-warning py-0" @onclick="() => ResetWorkflow(f.Id)">Reset all</button>
                                 </div>
                                 <div class="mb-1">
                                     @for (int si = 0; si < steps.Count; si++)
                                     {
                                         var s = steps[si];
-                                        <div class="d-flex align-items-center gap-2 mb-1 p-1 rounded @(s.Completed ? "bg-success bg-opacity-10" : "")">
-                                            <span class="badge @(s.Completed ? "bg-success" : "bg-secondary")">@(s.Completed ? "✓" : (si + 1).ToString())</span>
-                                            <span class="flex-grow-1 small">
-                                                @s.Name
+                                        <div class="step-row @(s.Completed ? "step-done" : "step-pending")">
+                                            <div class="step-marker @(s.Completed ? "marker-done" : "marker-pending")">
+                                                @if (s.Completed) { <text>&#10003;</text> } else { @(si + 1) }
+                                            </div>
+                                            <div class="step-content">
+                                                <div class="step-title">@s.Name</div>
                                                 @if (!string.IsNullOrEmpty(s.Description))
                                                 {
-                                                    <br /><span class="step-desc-view">@s.Description</span>
+                                                    <div class="step-desc-view">@s.Description</div>
                                                 }
-                                            </span>
-                                            @if (!s.Completed)
-                                            {
-                                                <button class="btn btn-sm btn-outline-primary py-0 px-1" @onclick="() => QuickCompleteStep(s.Id)">Done</button>
-                                            }
-                                            @if (s.Completed)
-                                            {
-                                                <small class="text-muted" title="Completed @(s.CompletedAt?.ToString("yyyy-MM-dd HH:mm") ?? "")">&#10003;</small>
-                                            }
-                                            <button class="btn btn-sm btn-outline-danger py-0 px-1" @onclick="() => QuickRemoveStep(s.Id)">&times;</button>
+                                            </div>
+                                            <div class="step-actions">
+                                                @if (!s.Completed)
+                                                {
+                                                    <button class="btn btn-sm btn-primary py-0 px-2" @onclick="() => QuickCompleteStep(s.Id)">Done</button>
+                                                }
+                                                @if (s.Completed)
+                                                {
+                                                    <span class="step-time" title="Completed @(s.CompletedAt?.ToString("yyyy-MM-dd HH:mm") ?? "")">&#10003; @(s.CompletedAt?.ToString("MMM dd HH:mm") ?? "")</span>
+                                                }
+                                                <button class="btn btn-sm btn-outline-danger py-0 px-1" @onclick="() => QuickRemoveStep(s.Id)">&times;</button>
+                                            </div>
                                         </div>
                                     }
                                 </div>
                             }
-                            <div class="mt-1">
+                            <div class="mt-2">
                                 <div class="row g-1">
                                     <div class="col-12">
                                         <input type="text" class="form-control form-control-sm" placeholder="Step name" @bind="newStepName" />
@@ -114,42 +118,70 @@ else
             {
                 if (field.FieldType == "text" && !string.IsNullOrWhiteSpace(field.Content))
                 {
-                    <div class="mb-3">@((MarkupString)FormatContent(field.Content))</div>
+                    <div class="block-text mb-3">@((MarkupString)FormatContent(field.Content))</div>
                 }
                 else if (field.FieldType == "workflow" && field.Steps.Any())
                 {
                     var steps = field.Steps.ToList();
-                    var currentIdx = steps.FindIndex(s => !s.Completed);
-                    if (currentIdx == -1 && steps.Any()) currentIdx = steps.Count - 1;
-                    @if (steps.Any(s => s.Completed))
-                    {
-                        <div class="d-flex justify-content-end mb-1">
-                            <button class="btn btn-sm btn-outline-warning py-0" @onclick="() => ResetWorkflow(field.Id)">Reset all</button>
-                        </div>
-                    }
-                    @for (int si = 0; si < steps.Count; si++)
-                    {
-                        var s = steps[si];
-                        var isCur = si == currentIdx && !s.Completed;
-                        <div class="d-flex align-items-center gap-2 mb-1 p-1 rounded small @(isCur ? "current-step" : "") @(s.Completed ? "done-step" : "")">
-                            <span class="badge rounded-pill @(s.Completed ? "bg-success" : isCur ? "bg-primary" : "bg-secondary")">@(s.Completed ? "✓" : (si + 1).ToString())</span>
-                            <div class="flex-grow-1">
-                                <span>@s.Name</span>
-                                @if (!string.IsNullOrEmpty(s.Description))
+                    var total = steps.Count;
+                    var done = steps.Count(s => s.Completed);
+                    var collapsed = collapsedWorkflows.Contains(field.Id);
+
+                    <div class="block-workflow mb-3">
+                        <div class="wf-summary" @onclick="() => ToggleWorkflow(field.Id)">
+                            <div class="wf-summary-left">
+                                <span class="wf-icon">&#9776;</span>
+                                <span class="wf-label">Workflow</span>
+                                <span class="wf-progress">@done/@total done</span>
+                                @if (!collapsed)
                                 {
-                                    <br /><span class="step-desc-view">@s.Description</span>
+                                    var current = steps.FirstOrDefault(s => !s.Completed);
+                                    <span class="wf-current">@(current != null ? current.Name : "All complete")</span>
                                 }
                             </div>
-                            @if (isCur)
-                            {
-                                <button class="btn btn-sm btn-primary py-0 px-2" @onclick="() => QuickCompleteStep(s.Id)">Complete</button>
-                            }
-                            else if (s.Completed)
-                            {
-                                <span class="text-muted small">Done @(s.CompletedAt?.ToString("MMM dd HH:mm") ?? "")</span>
-                            }
+                            <span class="wf-expand">@(collapsed ? "&#9654;" : "&#9660;")</span>
                         </div>
-                    }
+
+                        @if (!collapsed)
+                        {
+                            var currentIdx = steps.FindIndex(s => !s.Completed);
+                            if (currentIdx == -1 && steps.Any()) currentIdx = steps.Count - 1;
+
+                            <div class="wf-steps">
+                                @for (int si = 0; si < steps.Count; si++)
+                                {
+                                    var s = steps[si];
+                                    var isCur = si == currentIdx && !s.Completed;
+                                    <div class="step-row @(isCur ? "step-current" : "") @(s.Completed ? "step-done" : "step-pending")">
+                                        <div class="step-marker @(isCur ? "marker-current" : s.Completed ? "marker-done" : "marker-pending")">
+                                            @if (s.Completed) { <text>&#10003;</text> } else { @(si + 1) }
+                                        </div>
+                                        <div class="step-content">
+                                            <div class="step-title">@s.Name</div>
+                                            @if (!string.IsNullOrEmpty(s.Description))
+                                            {
+                                                <div class="step-desc-view">@s.Description</div>
+                                            }
+                                        </div>
+                                        <div class="step-actions">
+                                            @if (isCur)
+                                            {
+                                                <button class="btn btn-sm btn-primary py-0 px-2" @onclick="() => QuickCompleteStep(s.Id)">Complete</button>
+                                            }
+                                            else if (s.Completed)
+                                            {
+                                                <span class="step-time">&#10003; @(s.CompletedAt?.ToString("MMM dd HH:mm") ?? "")</span>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                                @if (steps.Any(s => s.Completed))
+                                {
+                                    <button class="btn btn-sm btn-outline-warning wf-reset" @onclick="() => ResetWorkflow(field.Id)">Reset all</button>
+                                }
+                            </div>
+                        }
+                    </div>
                 }
             }
         }
@@ -164,6 +196,7 @@ else
     private DotNetObjectReference<ArticleDetails>? dotNetRef;
     private string newStepName = "";
     private string newStepDesc = "";
+    private HashSet<int> collapsedWorkflows = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -238,6 +271,14 @@ else
             await LoadFields();
         }
         editMode = !editMode;
+        collapsedWorkflows.Clear();
+        StateHasChanged();
+    }
+
+    private void ToggleWorkflow(int fieldId)
+    {
+        if (!collapsedWorkflows.Remove(fieldId))
+            collapsedWorkflows.Add(fieldId);
         StateHasChanged();
     }
 

@@ -503,3 +503,187 @@ hr {
     border-color: var(--border-color);
     opacity: 0.5;
 }
+
+/* ===== Block distinction ===== */
+
+.block-text {
+    border-left: 2px solid var(--border-color);
+    padding-left: 1rem;
+}
+
+.block-workflow {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: var(--bg-card);
+    box-shadow: var(--shadow-sm);
+}
+
+/* ===== Workflow summary bar ===== */
+
+.wf-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-tertiary);
+    cursor: pointer;
+    user-select: none;
+    transition: var(--transition);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.wf-summary:hover {
+    background: #2f3138;
+}
+
+.wf-summary-left {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    overflow: hidden;
+}
+
+.wf-icon {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+}
+
+.wf-label {
+    color: var(--accent-color);
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.wf-progress {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    padding: 0.1em 0.5em;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.04);
+    white-space: nowrap;
+}
+
+.wf-current {
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.wf-expand {
+    color: var(--text-muted);
+    font-size: 0.65rem;
+    margin-left: 0.5rem;
+}
+
+/* ===== Workflow steps area ===== */
+
+.wf-steps {
+    padding: 0.5rem 0.75rem;
+}
+
+.wf-reset {
+    margin-top: 0.5rem;
+    width: 100%;
+}
+
+/* ===== Step rows ===== */
+
+.step-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.625rem;
+    padding: 0.5rem 0.625rem;
+    border-radius: var(--radius-sm);
+    transition: var(--transition);
+    margin-bottom: 0.25rem;
+    border: 1px solid transparent;
+}
+
+.step-row.step-current {
+    border-color: var(--accent-color);
+    background: rgba(59, 130, 246, 0.06);
+    box-shadow: 0 0 0 1px var(--accent-color);
+}
+
+.step-row.step-done {
+    opacity: 0.55;
+}
+
+.step-row.step-done:hover {
+    opacity: 0.8;
+    border-color: var(--border-color);
+}
+
+.step-row.step-pending {
+    border-color: transparent;
+}
+
+.step-row.step-pending:hover {
+    border-color: var(--border-color);
+    background: rgba(255,255,255,0.02);
+}
+
+.step-marker {
+    width: 1.75rem;
+    height: 1.75rem;
+    min-width: 1.75rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.75rem;
+    margin-top: 0.05rem;
+    transition: var(--transition);
+}
+
+.marker-pending {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+}
+
+.marker-current {
+    background: var(--accent-color);
+    border: 1px solid var(--accent-color);
+    color: #fff;
+    box-shadow: 0 0 8px var(--accent-glow);
+}
+
+.marker-done {
+    background: var(--success-color);
+    border: 1px solid var(--success-color);
+    color: #fff;
+    font-size: 0.7rem;
+}
+
+.step-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.step-title {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    line-height: 1.4;
+}
+
+.step-time {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.step-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    white-space: nowrap;
+}
