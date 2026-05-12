@@ -315,7 +315,7 @@ h1, h2, h3, h4, h5, h6 {
 .field-list {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 1.5rem;
 }
 
 .field-block {
@@ -324,6 +324,11 @@ h1, h2, h3, h4, h5, h6 {
     background-color: var(--bg-card);
     box-shadow: var(--shadow-sm);
     transition: var(--transition);
+    margin-bottom: 0;
+}
+
+.field-block + .field-block {
+    border-top: 1px solid var(--border-color);
 }
 
 .field-block:hover {
