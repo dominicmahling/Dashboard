@@ -4,8 +4,7 @@
         var index = i;
         var step = Steps[index];
         var isCurrent = index == CurrentStep;
-        var isNext = index == CurrentStep + 1;
-        var cssClass = isCurrent ? "active" : step.Completed ? "completed" : isNext ? "next" : "";
+        var cssClass = isCurrent ? "active" : step.Completed ? "completed" : "";
 
         <div class="step @cssClass" @onclick="() => OnStepClick.InvokeAsync(index)">
             <div class="step-indicator">
@@ -19,6 +18,10 @@
                 }
             </div>
             <div class="step-label">@step.Name</div>
+            @if (!step.Completed)
+            {
+                <button class="step-remove" @onclick:stopPropagation @onclick="() => OnRemoveStep.InvokeAsync(index)" title="Remove step">&times;</button>
+            }
         </div>
 
         @if (index < Steps.Count - 1)
@@ -32,6 +35,7 @@
     [Parameter, EditorRequired] public int CurrentStep { get; set; }
     [Parameter, EditorRequired] public List<WorkflowStepItem> Steps { get; set; } = new();
     [Parameter] public EventCallback<int> OnStepClick { get; set; }
+    [Parameter] public EventCallback<int> OnRemoveStep { get; set; }
 
     public class WorkflowStepItem
     {
