@@ -122,6 +122,27 @@ else
         }
         else
         {
+            var allStepsDone = fields.Where(f => f.FieldType == "workflow").SelectMany(f => f.Steps).Any() &&
+                               fields.Where(f => f.FieldType == "workflow").SelectMany(f => f.Steps).All(s => s.Completed);
+            var anyDone = fields.Where(f => f.FieldType == "workflow").SelectMany(f => f.Steps).Any(s => s.Completed);
+
+            @if (anyDone)
+            {
+                <div class="d-flex justify-content-end mb-3">
+                    <button class="btn btn-outline-warning btn-sm" @onclick="ResetAllWorkflows">Reset all workflows</button>
+                </div>
+            }
+
+            @if (allStepsDone && !dismissToast)
+            {
+                <div class="toast-done">
+                    <div class="toast-done-body">
+                        <span>All workflows complete!</span>
+                        <button class="btn btn-sm btn-outline-warning ms-3" @onclick="ResetAllWorkflows">Reset all</button>
+                        <button class="btn btn-sm btn-outline-secondary ms-1" @onclick="DismissToast">&times;</button>
+                    </div>
+                </div>
+            }
             @foreach (var field in fields)
             {
                 if (field.FieldType == "text" && !string.IsNullOrWhiteSpace(field.Content))
@@ -201,6 +222,7 @@ else
     private string newStepName = "";
     private string newStepDesc = "";
     private Dictionary<int, bool> manualExpanded = new();
+    private bool dismissToast;
     private static readonly MarkdownPipeline MarkdownPipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
 
     protected override async Task OnInitializedAsync()
@@ -308,6 +330,39 @@ else
             var local = fields.FirstOrDefault(f => f.Id == fieldId);
             if (local != null) local.ExpandByDefault = field.ExpandByDefault;
         }
+    }
+
+    private async Task ResetAllWorkflows()
+    {
+        dismissToast = true;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var steps = await db.WorkflowSteps.Where(s => s.ArticleField.ArticleId == Id).ToListAsync();
+        foreach (var s in steps)
+        {
+            s.Completed = false;
+            s.CompletedAt = null;
+            s.CompletedBy = null;
+        }
+        await db.SaveChangesAsync();
+
+        foreach (var field in fields)
+        {
+            foreach (var s in field.Steps)
+            {
+                s.Completed = false;
+                s.CompletedAt = null;
+                s.CompletedBy = null;
+            }
+        }
+
+        manualExpanded.Clear();
+        StateHasChanged();
+    }
+
+    private void DismissToast()
+    {
+        dismissToast = true;
+        StateHasChanged();
     }
 
     private async Task QuickAddStep(int fieldId)

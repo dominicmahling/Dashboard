@@ -736,3 +736,36 @@ hr {
     gap: 0.25rem;
     white-space: nowrap;
 }
+
+/* ===== Toast notification ===== */
+
+.toast-done {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 9999;
+    animation: slideInRight 0.4s ease-out;
+}
+
+.toast-done-body {
+    display: flex;
+    align-items: center;
+    background: var(--bg-card);
+    border: 1px solid var(--success-color);
+    border-radius: var(--radius-lg);
+    padding: 0.75rem 1rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(34, 197, 94, 0.2);
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(120%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
