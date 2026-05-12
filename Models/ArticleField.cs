@@ -12,6 +12,8 @@ public class ArticleField
 
     public string? Content { get; set; }
 
+    public bool ExpandByDefault { get; set; }
+
     public int Order { get; set; }
 
     public int ArticleId { get; set; }

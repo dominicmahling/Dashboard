@@ -1,5 +1,6 @@
 @page "/articles/{id:int}"
 @using Microsoft.EntityFrameworkCore
+@using Markdig
 @inject IDbContextFactory<AppDbContext> DbFactory
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JS
@@ -49,6 +50,7 @@ else
                         @if (f.FieldType == "text")
                         {
                             <textarea class="form-control" rows="6" @bind="f.Content" @bind:after="() => SaveField(f)"></textarea>
+                            <small class="text-muted mt-1 d-block">Markdown supported: **bold**, *italic*, # headings, - lists, [links](url)</small>
                         }
                         else if (f.FieldType == "workflow")
                         {
@@ -57,7 +59,13 @@ else
                             {
                                 <div class="d-flex justify-content-between align-items-center mb-1">
                                     <small class="text-muted">@steps.Count step(s) &middot; @steps.Count(s => s.Completed) completed</small>
-                                    <button class="btn btn-sm btn-outline-warning py-0" @onclick="() => ResetWorkflow(f.Id)">Reset all</button>
+                                    <div>
+                                        <label class="me-2 small text-muted" style="cursor:pointer">
+                                            <input type="checkbox" class="form-check-input me-1" checked="@f.ExpandByDefault" @onchange="() => ToggleExpandDefault(f.Id)" style="width:0.8rem;height:0.8rem" />
+                                            Auto-expand
+                                        </label>
+                                        <button class="btn btn-sm btn-outline-warning py-0" @onclick="() => ResetWorkflow(f.Id)">Reset all</button>
+                                    </div>
                                 </div>
                                 <div class="mb-1">
                                     @for (int si = 0; si < steps.Count; si++)
@@ -118,14 +126,14 @@ else
             {
                 if (field.FieldType == "text" && !string.IsNullOrWhiteSpace(field.Content))
                 {
-                    <div class="block-text mb-3">@((MarkupString)FormatContent(field.Content))</div>
+                    <div class="block-text mb-3">@((MarkupString)RenderMarkdown(field.Content))</div>
                 }
                 else if (field.FieldType == "workflow" && field.Steps.Any())
                 {
                     var steps = field.Steps.ToList();
                     var total = steps.Count;
                     var done = steps.Count(s => s.Completed);
-                    var collapsed = collapsedWorkflows.Contains(field.Id);
+                    var expanded = IsExpanded(field);
 
                     <div class="block-workflow mb-3">
                         <div class="wf-summary" @onclick="() => ToggleWorkflow(field.Id)">
@@ -133,16 +141,16 @@ else
                                 <span class="wf-icon">&#9776;</span>
                                 <span class="wf-label">Workflow</span>
                                 <span class="wf-progress">@done/@total done</span>
-                                @if (!collapsed)
+                                @if (!expanded)
                                 {
                                     var current = steps.FirstOrDefault(s => !s.Completed);
                                     <span class="wf-current">@(current != null ? current.Name : "All complete")</span>
                                 }
                             </div>
-                            <span class="wf-expand">@(collapsed ? "&#9654;" : "&#9660;")</span>
+                            <span class="wf-expand">@(expanded ? "&#9660;" : "&#9654;")</span>
                         </div>
 
-                        @if (!collapsed)
+                        @if (expanded)
                         {
                             var currentIdx = steps.FindIndex(s => !s.Completed);
                             if (currentIdx == -1 && steps.Any()) currentIdx = steps.Count - 1;
@@ -175,10 +183,6 @@ else
                                         </div>
                                     </div>
                                 }
-                                @if (steps.Any(s => s.Completed))
-                                {
-                                    <button class="btn btn-sm btn-outline-warning wf-reset" @onclick="() => ResetWorkflow(field.Id)">Reset all</button>
-                                }
                             </div>
                         }
                     </div>
@@ -196,7 +200,8 @@ else
     private DotNetObjectReference<ArticleDetails>? dotNetRef;
     private string newStepName = "";
     private string newStepDesc = "";
-    private HashSet<int> collapsedWorkflows = new();
+    private Dictionary<int, bool> manualExpanded = new();
+    private static readonly MarkdownPipeline MarkdownPipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
 
     protected override async Task OnInitializedAsync()
     {
@@ -271,15 +276,38 @@ else
             await LoadFields();
         }
         editMode = !editMode;
-        collapsedWorkflows.Clear();
+        manualExpanded.Clear();
         StateHasChanged();
+    }
+
+    private bool IsExpanded(ArticleField field)
+    {
+        if (manualExpanded.TryGetValue(field.Id, out var overridden))
+            return overridden;
+        if (field.Steps.All(s => s.Completed))
+            return false;
+        return field.ExpandByDefault;
     }
 
     private void ToggleWorkflow(int fieldId)
     {
-        if (!collapsedWorkflows.Remove(fieldId))
-            collapsedWorkflows.Add(fieldId);
+        var field = fields.FirstOrDefault(f => f.Id == fieldId);
+        if (field == null) return;
+        manualExpanded[fieldId] = !IsExpanded(field);
         StateHasChanged();
+    }
+
+    private async Task ToggleExpandDefault(int fieldId)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var field = await db.ArticleFields.FindAsync(fieldId);
+        if (field != null)
+        {
+            field.ExpandByDefault = !field.ExpandByDefault;
+            await db.SaveChangesAsync();
+            var local = fields.FirstOrDefault(f => f.Id == fieldId);
+            if (local != null) local.ExpandByDefault = field.ExpandByDefault;
+        }
     }
 
     private async Task QuickAddStep(int fieldId)
@@ -478,10 +506,11 @@ else
         NavigationManager.NavigateTo($"/topics/{topicId}");
     }
 
-    private static string FormatContent(string? content)
+    private static string RenderMarkdown(string? content)
     {
         if (string.IsNullOrEmpty(content)) return "";
-        return System.Net.WebUtility.HtmlEncode(content).Replace("\n", "<br>");
+        var html = Markdown.ToHtml(content, MarkdownPipeline);
+        return html;
     }
 
     public async ValueTask DisposeAsync()

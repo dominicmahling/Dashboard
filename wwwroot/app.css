@@ -681,6 +681,55 @@ hr {
     white-space: nowrap;
 }
 
+.block-text h1 { font-size: 1.4rem; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+.block-text h2 { font-size: 1.2rem; margin-top: 1.25rem; margin-bottom: 0.5rem; }
+.block-text h3 { font-size: 1.05rem; margin-top: 1rem; margin-bottom: 0.5rem; }
+.block-text p { margin-bottom: 0.75rem; }
+.block-text ul, .block-text ol { margin-bottom: 0.75rem; padding-left: 1.5rem; }
+.block-text li { margin-bottom: 0.25rem; }
+.block-text pre {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.75rem;
+    overflow-x: auto;
+    margin-bottom: 0.75rem;
+}
+.block-text code {
+    background: var(--bg-tertiary);
+    padding: 0.15em 0.4em;
+    border-radius: 0.25rem;
+    font-size: 0.85em;
+}
+.block-text pre code {
+    background: none;
+    padding: 0;
+}
+.block-text blockquote {
+    border-left: 3px solid var(--accent-color);
+    padding-left: 0.75rem;
+    margin-left: 0;
+    color: var(--text-secondary);
+}
+.block-text img {
+    max-width: 100%;
+    border-radius: var(--radius-sm);
+}
+.block-text table {
+    width: 100%;
+    margin-bottom: 0.75rem;
+    border-collapse: collapse;
+}
+.block-text th, .block-text td {
+    border: 1px solid var(--border-color);
+    padding: 0.375rem 0.5rem;
+    font-size: 0.85rem;
+}
+.block-text th {
+    background: var(--bg-tertiary);
+    font-weight: 600;
+}
+
 .step-actions {
     display: flex;
     align-items: center;
