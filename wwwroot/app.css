@@ -268,6 +268,25 @@ table thead {
     color: var(--text-primary) !important;
 }
 
+.table {
+    --bs-table-bg: var(--bg-secondary) !important;
+    --bs-table-striped-bg: var(--bg-tertiary) !important;
+    --bs-table-hover-bg: var(--bg-tertiary) !important;
+    --bs-table-active-bg: var(--bg-tertiary) !important;
+    --bs-table-border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+.table th, .table td {
+    background-color: transparent !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-color) !important;
+}
+
+.table-striped > tbody > tr:nth-of-type(odd) > * {
+    --bs-table-bg-type: var(--bg-tertiary) !important;
+}
+
 .table-active {
     --bs-table-bg-state: var(--bg-tertiary) !important;
 }
