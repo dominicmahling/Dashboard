@@ -165,16 +165,31 @@ else
         }
     }
 
+    private IJSObjectReference? fieldEditorModule;
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (editMode)
+        if (firstRender)
         {
-            dotNetRef ??= DotNetObjectReference.Create(this);
-            await JS.InvokeVoidAsync("FieldEditor.init", "field-container", dotNetRef);
+            fieldEditorModule = await JS.InvokeAsync<IJSObjectReference>("import", "/js/field-editor.js");
         }
-        else if (dotNetRef != null)
+
+        try
         {
-            await JS.InvokeVoidAsync("FieldEditor.destroy");
+            if (editMode)
+            {
+                dotNetRef ??= DotNetObjectReference.Create(this);
+                if (fieldEditorModule != null)
+                    await fieldEditorModule.InvokeVoidAsync("init", "field-container", dotNetRef);
+            }
+            else if (dotNetRef != null)
+            {
+                if (fieldEditorModule != null)
+                    await fieldEditorModule.InvokeVoidAsync("destroy");
+            }
+        }
+        catch
+        {
         }
     }
 
@@ -369,11 +384,12 @@ else
     {
         try
         {
-            if (dotNetRef != null)
+            if (fieldEditorModule != null)
             {
-                await JS.InvokeVoidAsync("FieldEditor.destroy");
-                dotNetRef.Dispose();
+                await fieldEditorModule.InvokeVoidAsync("destroy");
+                await fieldEditorModule.DisposeAsync();
             }
+            if (dotNetRef != null) dotNetRef.Dispose();
         }
         catch
         {
