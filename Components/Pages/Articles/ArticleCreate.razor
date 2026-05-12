@@ -16,12 +16,6 @@
         <ValidationMessage For="@(() => article.Title)" />
     </div>
 
-    <div class="mb-3">
-        <label class="form-label">Content</label>
-        <InputTextArea @bind-Value="article.Content" class="form-control" rows="12" />
-        <ValidationMessage For="@(() => article.Content)" />
-    </div>
-
     <button type="submit" class="btn btn-primary">Create</button>
     <a href="/topics/@TopicId" class="btn btn-secondary ms-2">Cancel</a>
 </EditForm>
@@ -40,6 +34,16 @@
         await using var db = await DbFactory.CreateDbContextAsync();
         db.Articles.Add(article);
         await db.SaveChangesAsync();
-        NavigationManager.NavigateTo($"/articles/{article.Id}/workflow");
+
+        var field = new ArticleField
+        {
+            FieldType = "text",
+            Order = 0,
+            ArticleId = article.Id
+        };
+        db.ArticleFields.Add(field);
+        await db.SaveChangesAsync();
+
+        NavigationManager.NavigateTo($"/articles/{article.Id}");
     }
 }

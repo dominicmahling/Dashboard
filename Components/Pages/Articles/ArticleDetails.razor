@@ -1,9 +1,15 @@
 @page "/articles/{id:int}"
+@using Microsoft.EntityFrameworkCore
 @inject IDbContextFactory<AppDbContext> DbFactory
 @inject NavigationManager NavigationManager
+@inject IJSRuntime JS
+@implements IAsyncDisposable
 @rendermode InteractiveServer
 
 <PageTitle>@(article?.Title ?? "Article")</PageTitle>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+<script src="/js/field-editor.js"></script>
 
 @if (article == null)
 {
@@ -14,7 +20,10 @@ else
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h1>@article.Title</h1>
         <div>
-            <a href="/articles/@article.Id/edit" class="btn btn-outline-secondary">Edit</a>
+            <button class="btn @(editMode ? "btn-primary" : "btn-outline-secondary")" @onclick="ToggleEdit">
+                @(editMode ? "Done Editing" : "Edit")
+            </button>
+            <a href="/articles/@article.Id/edit" class="btn btn-outline-secondary ms-2">Settings</a>
             <button class="btn btn-outline-danger ms-2" @onclick="DeleteArticle">Delete</button>
         </div>
     </div>
@@ -24,136 +33,97 @@ else
         &middot; Updated: @article.UpdatedAt.ToString("yyyy-MM-dd HH:mm")
     </p>
 
-    @foreach (var segment in contentSegments)
-    {
-        if (!string.IsNullOrWhiteSpace(segment.Text))
+    <div id="field-container">
+        @if (editMode)
         {
-            <div class="article-content mb-4">
-                @((MarkupString)FormatContent(segment.Text))
-            </div>
-        }
-        @if (segment.Workflow != null)
-        {
-            <div class="workflow-block mt-4 mb-4">
-                <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <span class="fw-bold">@segment.Workflow.Name</span>
-                        <div class="d-flex gap-2">
-                            <button class="btn btn-sm btn-outline-warning" @onclick="() => ResetWorkflowByName(segment.Workflow.Name)">Reset</button>
-                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteWorkflow(segment.Workflow.Id)">Delete</button>
-                        </div>
+            @for (int i = 0; i < fields.Count; i++)
+            {
+                var f = fields[i];
+                var idx = i;
+                <div class="field-block" data-field-id="@f.Id">
+                    <div class="field-header">
+                        <span class="drag-handle">&#9776;</span>
+                        <span class="badge bg-secondary">@f.FieldType</span>
+                        <button class="btn btn-sm btn-outline-success ms-2" @onclick="() => MoveFieldUp(idx)" disabled="@(idx == 0)">&#8593;</button>
+                        <button class="btn btn-sm btn-outline-success" @onclick="() => MoveFieldDown(idx)" disabled="@(idx == fields.Count - 1)">&#8595;</button>
+                        <button class="btn btn-sm btn-outline-danger ms-auto" @onclick="() => DeleteField(f.Id)">&#x2715;</button>
                     </div>
-                    <div class="card-body p-0">
-                        <div class="workflow-list">
-                            @{
-                                var wfl = segment.Workflow;
-                                var wflSteps = wfl.Steps.ToList();
-                                var wflCurrentIdx = wflSteps.FindIndex(s => !s.Completed);
-                                if (wflCurrentIdx == -1 && wflSteps.Any()) wflCurrentIdx = wflSteps.Count - 1;
-                            }
-                            @for (int i = 0; i < wflSteps.Count; i++)
+                    <div class="field-body">
+                        @if (f.FieldType == "text")
+                        {
+                            <textarea class="form-control" rows="6" @bind="f.Content" @bind:after="() => SaveField(f)"></textarea>
+                        }
+                        else if (f.FieldType == "workflow")
+                        {
+                            var steps = f.Steps.ToList();
+                            if (steps.Any())
                             {
-                                var step = wflSteps[i];
-                                var isCurrent = i == wflCurrentIdx && !step.Completed;
-                                <div class="workflow-step-item @(isCurrent ? "current" : "") @(step.Completed ? "done" : "")">
-                                    <div class="step-header">
-                                        <div class="step-indicator @(isCurrent ? "active" : "") @(step.Completed ? "completed" : "")">
-                                            @if (step.Completed)
+                                <div class="mb-1">
+                                    @for (int si = 0; si < steps.Count; si++)
+                                    {
+                                        var s = steps[si];
+                                        <div class="d-flex align-items-center gap-2 mb-1 p-1 rounded @(s.Completed ? "bg-success bg-opacity-10" : "")">
+                                            <span class="badge @(s.Completed ? "bg-success" : "bg-secondary")">@(s.Completed ? "✓" : (si + 1).ToString())</span>
+                                            <span class="flex-grow-1 small">@s.Name@(string.IsNullOrEmpty(s.Description) ? "" : $" - {s.Description}")</span>
+                                            @if (!s.Completed)
                                             {
-                                                <span>&#10003;</span>
+                                                <button class="btn btn-sm btn-outline-primary py-0 px-1" @onclick="() => QuickCompleteStep(s.Id)">Done</button>
                                             }
-                                            else
-                                            {
-                                                @(i + 1)
-                                            }
+                                            <button class="btn btn-sm btn-outline-danger py-0 px-1" @onclick="() => QuickRemoveStep(s.Id)">&times;</button>
                                         </div>
-                                        <div class="step-info">
-                                            <h5 class="step-name mb-0">@step.Name</h5>
-                                            @if (!string.IsNullOrEmpty(step.Description))
-                                            {
-                                                <p class="step-desc mb-0">@step.Description</p>
-                                            }
-                                        </div>
-                                        <div class="step-actions">
-                                            @if (isCurrent)
-                                            {
-                                                <button class="btn btn-primary btn-sm" @onclick="() => CompleteStep(step.Id)">Mark Complete</button>
-                                            }
-                                            else if (step.Completed)
-                                            {
-                                                <span class="badge bg-success">Done</span>
-                                            }
-                                            <button class="btn btn-sm btn-outline-danger ms-1" @onclick="() => RemoveStep(step.Id)" title="Remove">&#00d7;</button>
-                                        </div>
-                                    </div>
+                                    }
                                 </div>
-                                @if (i < wflSteps.Count - 1)
-                                {
-                                    <div class="step-divider @(step.Completed ? "completed" : "")"></div>
-                                }
                             }
-                        </div>
-                        <div class="p-3 border-top">
-                            <div class="row g-2">
-                                <div class="col-md-5">
-                                    <input type="text" class="form-control form-control-sm" placeholder="Step name" @bind="newStepName" />
-                                </div>
-                                <div class="col-md-5">
-                                    <input type="text" class="form-control form-control-sm" placeholder="Description (optional)" @bind="newStepDesc" />
-                                </div>
-                                <div class="col-md-2">
-                                    <button class="btn btn-success btn-sm w-100" @onclick="() => AddStep(wfl.Name)">Add</button>
-                                </div>
+                            <div class="input-group input-group-sm">
+                                <input type="text" class="form-control" placeholder="Step name" @bind="newStepName" />
+                                <input type="text" class="form-control" placeholder="Description" @bind="newStepDesc" />
+                                <button class="btn btn-success" @onclick="() => QuickAddStep(f.Id)">Add</button>
                             </div>
-                        </div>
+                        }
                     </div>
                 </div>
+            }
+
+            <div class="mt-3">
+                <button class="btn btn-success me-2" @onclick="() => AddText()">+ Text</button>
+                <button class="btn btn-success" @onclick="() => AddWorkflow()">+ Workflow</button>
             </div>
         }
-    }
-
-    <div class="mt-4 p-3 border rounded">
-        <h6>Add Workflow Block</h6>
-        <p class="text-muted small mb-3">To place a workflow within your article content, add the tag <code>[WORKFLOW:name]</code> where you want it to appear in your article text.</p>
-        <div class="row g-2">
-            <div class="col-md-4">
-                <input type="text" class="form-control form-control-sm" placeholder="Workflow name (e.g. Setup)" @bind="newWorkflowName" />
-            </div>
-            <div class="col-md-3">
-                <input type="number" class="form-control form-control-sm" placeholder="Position" @bind="newWorkflowPosition" min="0" />
-            </div>
-            <div class="col-md-2">
-                <button class="btn btn-success btn-sm w-100" @onclick="AddWorkflowBlock">Add</button>
-            </div>
-        </div>
-
-        @if (workflows.Any())
+        else
         {
-            <div class="table-responsive mt-3">
-                <table class="table table-sm mb-0">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Position</th>
-                            <th>Steps</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var wf in workflows.OrderBy(w => w.Position))
+            @foreach (var field in fields)
+            {
+                if (field.FieldType == "text" && !string.IsNullOrWhiteSpace(field.Content))
+                {
+                    <div class="mb-3">@((MarkupString)FormatContent(field.Content))</div>
+                }
+                else if (field.FieldType == "workflow")
+                {
+                    var steps = field.Steps.ToList();
+                    @if (steps.Any())
+                    {
+                        var currentIdx = steps.FindIndex(s => !s.Completed);
+                        if (currentIdx == -1 && steps.Any()) currentIdx = steps.Count - 1;
+                        @for (int si = 0; si < steps.Count; si++)
                         {
-                            <tr>
-                                <td>@wf.Name</td>
-                                <td>@wf.Position</td>
-                                <td>@wf.Steps.Count</td>
-                                <td>
-                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteWorkflow(wf.Id)">Delete</button>
-                                </td>
-                            </tr>
+                            var s = steps[si];
+                            var isCur = si == currentIdx && !s.Completed;
+                            <div class="d-flex align-items-center gap-2 mb-1 p-1 rounded small @(isCur ? "current-step" : "") @(s.Completed ? "done-step" : "")">
+                                <span class="badge rounded-pill @(s.Completed ? "bg-success" : isCur ? "bg-primary" : "bg-secondary")">@(s.Completed ? "✓" : (si + 1).ToString())</span>
+                                <span class="flex-grow-1">@s.Name</span>
+                                @if (isCur)
+                                {
+                                    <button class="btn btn-sm btn-primary py-0 px-2" @onclick="() => QuickCompleteStep(s.Id)">Complete</button>
+                                }
+                                else if (s.Completed)
+                                {
+                                    <span class="badge bg-success bg-opacity-25 text-success-emphasis">Done</span>
+                                }
+                            </div>
                         }
-                    </tbody>
-                </table>
-            </div>
+                    }
+                }
+            }
         }
     </div>
 }
@@ -161,10 +131,9 @@ else
 @code {
     [Parameter] public int Id { get; set; }
     private Article? article;
-    private List<Workflow> workflows = new();
-    private List<ContentSegment> contentSegments = new();
-    private string newWorkflowName = "";
-    private int newWorkflowPosition;
+    private List<ArticleField> fields = new();
+    private bool editMode;
+    private DotNetObjectReference<ArticleDetails>? dotNetRef;
     private string newStepName = "";
     private string newStepDesc = "";
 
@@ -179,123 +148,93 @@ else
         }
 
         await db.Entry(article).Reference(a => a.Topic).LoadAsync();
-
-        workflows = await db.Workflows
-            .Where(w => w.ArticleId == Id)
-            .ToListAsync();
-
-        foreach (var wf in workflows)
-        {
-            var steps = await db.WorkflowSteps
-                .Where(s => s.WorkflowName == wf.Name && s.ArticleId == Id)
-                .OrderBy(s => s.Order)
-                .ToListAsync();
-            wf.Steps = steps;
-        }
-
-        BuildContentSegments();
+        await LoadFields();
     }
 
-    private void BuildContentSegments()
-    {
-        contentSegments.Clear();
-        var content = article?.Content ?? "";
-
-        if (!content.Contains("[WORKFLOW:"))
-        {
-            if (!string.IsNullOrWhiteSpace(content))
-            {
-                contentSegments.Add(new ContentSegment { Text = content });
-            }
-            foreach (var wf in workflows.OrderBy(w => w.Position))
-            {
-                contentSegments.Add(new ContentSegment { Workflow = wf });
-            }
-            return;
-        }
-
-        var parts = content.Split(new[] { "[WORKFLOW:" }, StringSplitOptions.None).ToList();
-
-        for (int i = 0; i < parts.Count; i++)
-        {
-            var part = parts[i];
-            if (i == 0)
-            {
-                if (!string.IsNullOrWhiteSpace(part))
-                {
-                    contentSegments.Add(new ContentSegment { Text = part.Trim() });
-                }
-            }
-            else
-            {
-                var colonIndex = part.IndexOf(']');
-                if (colonIndex > 0)
-                {
-                    var wfName = part[..colonIndex];
-                    var afterText = part[(colonIndex + 1)..];
-
-                    var wf = workflows.FirstOrDefault(w => w.Name == wfName);
-                    if (wf != null)
-                    {
-                        contentSegments.Add(new ContentSegment { Workflow = wf });
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(afterText))
-                    {
-                        contentSegments.Add(new ContentSegment { Text = afterText.Trim() });
-                    }
-                }
-            }
-        }
-    }
-
-    private async Task CompleteStep(int stepId)
+    private async Task LoadFields()
     {
         await using var db = await DbFactory.CreateDbContextAsync();
-        var step = await db.WorkflowSteps.FindAsync(stepId);
-        if (step != null)
-        {
-            step.Completed = true;
-            step.CompletedAt = DateTime.UtcNow;
-            await db.SaveChangesAsync();
-        }
+        fields = await db.ArticleFields
+            .Where(f => f.ArticleId == Id)
+            .OrderBy(f => f.Order)
+            .ToListAsync();
 
-        foreach (var wf in workflows)
+        foreach (var field in fields.Where(f => f.FieldType == "workflow"))
         {
-            var s = wf.Steps.FirstOrDefault(x => x.Id == stepId);
-            if (s != null) { s.Completed = true; s.CompletedAt = DateTime.UtcNow; }
+            field.Steps = await db.WorkflowSteps
+                .Where(s => s.ArticleFieldId == field.Id)
+                .OrderBy(s => s.Order)
+                .ToListAsync();
         }
+    }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (editMode)
+        {
+            dotNetRef ??= DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("FieldEditor.init", "field-container", dotNetRef);
+        }
+        else if (dotNetRef != null)
+        {
+            await JS.InvokeVoidAsync("FieldEditor.destroy");
+        }
+    }
+
+    private async Task ToggleEdit()
+    {
+        if (editMode)
+        {
+            await JS.InvokeVoidAsync("FieldEditor.destroy");
+            await SaveAllFields();
+            await LoadFields();
+        }
+        editMode = !editMode;
         StateHasChanged();
     }
 
-    private async Task AddStep(string workflowName)
+    private async Task QuickAddStep(int fieldId)
     {
         if (string.IsNullOrWhiteSpace(newStepName)) return;
-
         await using var db = await DbFactory.CreateDbContextAsync();
-        var wf = workflows.FirstOrDefault(w => w.Name == workflowName);
-        if (wf == null) return;
-
         var step = new WorkflowStep
         {
             Name = newStepName.Trim(),
             Description = newStepDesc.Trim(),
-            Order = wf.Steps.Count,
-            WorkflowName = workflowName,
-            ArticleId = Id
+            Order = fields.First(f => f.Id == fieldId).Steps.Count,
+            ArticleFieldId = fieldId
         };
-
         db.WorkflowSteps.Add(step);
         await db.SaveChangesAsync();
-
-        wf.Steps.Add(step);
+        fields.First(f => f.Id == fieldId).Steps.Add(step);
         newStepName = "";
         newStepDesc = "";
         StateHasChanged();
     }
 
-    private async Task RemoveStep(int stepId)
+    private async Task QuickCompleteStep(int stepId)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var step = await db.WorkflowSteps.FindAsync(stepId);
+        if (step != null)
+        {
+            step.Completed = !step.Completed;
+            step.CompletedAt = step.Completed ? DateTime.UtcNow : null;
+            await db.SaveChangesAsync();
+        }
+        foreach (var f in fields)
+        {
+            var s = f.Steps.FirstOrDefault(x => x.Id == stepId);
+            if (s != null)
+            {
+                s.Completed = !s.Completed;
+                s.CompletedAt = s.Completed ? DateTime.UtcNow : null;
+            }
+        }
+        StateHasChanged();
+    }
+
+    private async Task QuickRemoveStep(int stepId)
     {
         await using var db = await DbFactory.CreateDbContextAsync();
         var step = await db.WorkflowSteps.FindAsync(stepId);
@@ -304,90 +243,102 @@ else
             db.WorkflowSteps.Remove(step);
             await db.SaveChangesAsync();
         }
-
-        foreach (var wf in workflows)
+        foreach (var f in fields)
         {
-            var toRemove = wf.Steps.FirstOrDefault(s => s.Id == stepId);
-            if (toRemove != null)
-            {
-                var list = wf.Steps.ToList();
-                list.Remove(toRemove);
-                wf.Steps = list;
-            }
+            var list = f.Steps.ToList();
+            list.RemoveAll(s => s.Id == stepId);
+            f.Steps = list;
         }
-
         StateHasChanged();
     }
 
-    private async Task ResetWorkflowByName(string workflowName)
+    private async Task AddText() => await AddField("text");
+    private async Task AddWorkflow() => await AddField("workflow");
+
+    private async Task AddField(string fieldType)
     {
         await using var db = await DbFactory.CreateDbContextAsync();
-        var steps = await db.WorkflowSteps
-            .Where(s => s.WorkflowName == workflowName && s.ArticleId == Id)
-            .ToListAsync();
-
-        foreach (var step in steps)
+        var field = new ArticleField
         {
-            step.Completed = false;
-            step.CompletedAt = null;
-        }
-        await db.SaveChangesAsync();
-
-        var wf = workflows.FirstOrDefault(w => w.Name == workflowName);
-        if (wf != null)
-        {
-            foreach (var step in wf.Steps)
-            {
-                step.Completed = false;
-                step.CompletedAt = null;
-            }
-        }
-
-        StateHasChanged();
-    }
-
-    private async Task DeleteWorkflow(int workflowId)
-    {
-        await using var db = await DbFactory.CreateDbContextAsync();
-        var wf = workflows.FirstOrDefault(w => w.Id == workflowId);
-        if (wf == null) return;
-
-        var steps = await db.WorkflowSteps
-            .Where(s => s.WorkflowName == wf.Name && s.ArticleId == Id)
-            .ToListAsync();
-
-        db.WorkflowSteps.RemoveRange(steps);
-        db.Workflows.Remove(wf);
-        await db.SaveChangesAsync();
-
-        workflows.Remove(wf);
-        BuildContentSegments();
-        StateHasChanged();
-    }
-
-    private async Task AddWorkflowBlock()
-    {
-        if (string.IsNullOrWhiteSpace(newWorkflowName)) return;
-
-        await using var db = await DbFactory.CreateDbContextAsync();
-
-        var wf = new Workflow
-        {
-            Name = newWorkflowName.Trim(),
-            Position = newWorkflowPosition,
+            FieldType = fieldType,
+            Order = fields.Count,
             ArticleId = Id
         };
-
-        db.Workflows.Add(wf);
+        db.ArticleFields.Add(field);
         await db.SaveChangesAsync();
+        field.Steps = new List<WorkflowStep>();
+        fields.Add(field);
+        StateHasChanged();
+    }
 
-        wf.Steps = new List<WorkflowStep>();
-        workflows.Add(wf);
+    private async Task DeleteField(int fieldId)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var field = await db.ArticleFields.Include(f => f.Steps).FirstOrDefaultAsync(f => f.Id == fieldId);
+        if (field != null)
+        {
+            db.WorkflowSteps.RemoveRange(field.Steps);
+            db.ArticleFields.Remove(field);
+            await db.SaveChangesAsync();
+        }
+        fields.RemoveAll(f => f.Id == fieldId);
+        StateHasChanged();
+    }
 
-        workflows = workflows.OrderBy(w => w.Position).ToList();
-        BuildContentSegments();
+    private async Task MoveFieldUp(int index)
+    {
+        if (index <= 0) return;
+        (fields[index], fields[index - 1]) = (fields[index - 1], fields[index]);
+        StateHasChanged();
+    }
 
-        newWorkflowName = "";
+    private async Task MoveFieldDown(int index)
+    {
+        if (index >= fields.Count - 1) return;
+        (fields[index], fields[index + 1]) = (fields[index + 1], fields[index]);
+        StateHasChanged();
+    }
+
+    private async Task SaveField(ArticleField field)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var existing = await db.ArticleFields.FindAsync(field.Id);
+        if (existing != null)
+        {
+            existing.Content = field.Content;
+            await db.SaveChangesAsync();
+        }
+    }
+
+    private async Task SaveAllFields()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        for (int i = 0; i < fields.Count; i++)
+        {
+            var existing = await db.ArticleFields.FindAsync(fields[i].Id);
+            if (existing != null)
+            {
+                existing.Content = fields[i].Content;
+                existing.Order = i;
+            }
+        }
+        await db.SaveChangesAsync();
+    }
+
+    [JSInvokable]
+    public async Task ReorderFields(List<FieldOrder> orderList)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        foreach (var item in orderList)
+        {
+            var existing = await db.ArticleFields.FindAsync(item.Id);
+            if (existing != null)
+            {
+                existing.Order = item.Order;
+            }
+        }
+        await db.SaveChangesAsync();
+        await LoadFields();
         StateHasChanged();
     }
 
@@ -399,13 +350,12 @@ else
         var a = await db.Articles.FindAsync(article.Id);
         if (a != null)
         {
-            var wfs = await db.Workflows.Where(w => w.ArticleId == article.Id).ToListAsync();
-            foreach (var wf in wfs)
+            var fields = await db.ArticleFields.Include(f => f.Steps).Where(f => f.ArticleId == article.Id).ToListAsync();
+            foreach (var f in fields)
             {
-                var steps = await db.WorkflowSteps.Where(s => s.WorkflowName == wf.Name && s.ArticleId == article.Id).ToListAsync();
-                db.WorkflowSteps.RemoveRange(steps);
+                db.WorkflowSteps.RemoveRange(f.Steps);
             }
-            db.Workflows.RemoveRange(wfs);
+            db.ArticleFields.RemoveRange(fields);
             db.Articles.Remove(a);
             await db.SaveChangesAsync();
         }
@@ -418,9 +368,18 @@ else
         return System.Net.WebUtility.HtmlEncode(content).Replace("\n", "<br>");
     }
 
-    private class ContentSegment
+    public async ValueTask DisposeAsync()
     {
-        public string? Text { get; set; }
-        public Workflow? Workflow { get; set; }
+        if (dotNetRef != null)
+        {
+            await JS.InvokeVoidAsync("FieldEditor.destroy");
+            dotNetRef.Dispose();
+        }
+    }
+
+    public class FieldOrder
+    {
+        public int Id { get; set; }
+        public int Order { get; set; }
     }
 }

@@ -29,16 +29,19 @@
 - `/topics/new` — New topic form
 - `/topics/{id}` — Topic details with article list (delete articles)
 - `/topics/{id}/edit` — Edit topic
-- `/topics/{topicId}/articles/new` — New article form (redirects to workflow after save)
-- `/articles/{id}` — Article view with delete button + workflow link
-- `/articles/{id}/edit` — Edit article
-- `/articles/{id}/workflow` — Workflow management (add/remove steps, track completion)
+- `/topics/{topicId}/articles/new` — New article form (creates initial text field)
+- `/articles/{id}` — Article view (fields rendered seamlessly) / Edit mode with drag-and-drop field reordering
+- `/articles/{id}/edit` — Edit article title
 - `/search` — Full-text search across topics and articles
 
-## Workflow
-- `WorkflowStep` model: linked to Article, has Name, Description, Order, Completed, CompletedAt
-- Workflow page: add steps, click to navigate, mark complete, auto-resets when all done
-- `WorkflowSteps` shared component: visual step indicator with clickable steps
+## Field System
+- Article content is composed of **Fields** (ArticleField model): type `text` or `workflow`
+- Fields are ordered by `Order` property
+- **View mode**: fields render seamlessly — you can't spot where one ends and the next begins
+- **Edit mode**: drag-and-drop reordering (SortableJS) via handle &#9776;, add/remove fields, inline editing
+- Text fields: textarea in edit, rendered with line breaks in view
+- Workflow fields: steps with completion tracking in edit/view, "Complete" button on current step
+- Up/down arrow buttons for keyboard-based reordering
 
 ## Planned Features
 - Script/DB query execution page

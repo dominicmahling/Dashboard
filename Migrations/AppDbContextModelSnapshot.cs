@@ -47,6 +47,33 @@ namespace Dashboard.Migrations
                     b.ToTable("Articles");
                 });
 
+            modelBuilder.Entity("Dashboard.Models.ArticleField", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ArticleId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Content")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FieldType")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ArticleId");
+
+                    b.ToTable("ArticleFields");
+                });
+
             modelBuilder.Entity("Dashboard.Models.Topic", b =>
                 {
                     b.Property<int>("Id")
@@ -70,37 +97,13 @@ namespace Dashboard.Migrations
                     b.ToTable("Topics");
                 });
 
-            modelBuilder.Entity("Dashboard.Models.Workflow", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("ArticleId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("Position")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ArticleId");
-
-                    b.ToTable("Workflows");
-                });
-
             modelBuilder.Entity("Dashboard.Models.WorkflowStep", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("ArticleId")
+                    b.Property<int>("ArticleFieldId")
                         .HasColumnType("INTEGER");
 
                     b.Property<bool>("Completed")
@@ -121,19 +124,9 @@ namespace Dashboard.Migrations
                     b.Property<int>("Order")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int?>("WorkflowId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("WorkflowName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("TEXT");
-
                     b.HasKey("Id");
 
-                    b.HasIndex("ArticleId");
-
-                    b.HasIndex("WorkflowId");
+                    b.HasIndex("ArticleFieldId");
 
                     b.ToTable("WorkflowSteps");
                 });
@@ -149,10 +142,10 @@ namespace Dashboard.Migrations
                     b.Navigation("Topic");
                 });
 
-            modelBuilder.Entity("Dashboard.Models.Workflow", b =>
+            modelBuilder.Entity("Dashboard.Models.ArticleField", b =>
                 {
                     b.HasOne("Dashboard.Models.Article", "Article")
-                        .WithMany("Workflows")
+                        .WithMany("Fields")
                         .HasForeignKey("ArticleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -162,32 +155,28 @@ namespace Dashboard.Migrations
 
             modelBuilder.Entity("Dashboard.Models.WorkflowStep", b =>
                 {
-                    b.HasOne("Dashboard.Models.Article", null)
-                        .WithMany("WorkflowSteps")
-                        .HasForeignKey("ArticleId")
+                    b.HasOne("Dashboard.Models.ArticleField", "ArticleField")
+                        .WithMany("Steps")
+                        .HasForeignKey("ArticleFieldId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Dashboard.Models.Workflow", null)
-                        .WithMany("Steps")
-                        .HasForeignKey("WorkflowId");
+                    b.Navigation("ArticleField");
                 });
 
             modelBuilder.Entity("Dashboard.Models.Article", b =>
                 {
-                    b.Navigation("WorkflowSteps");
+                    b.Navigation("Fields");
+                });
 
-                    b.Navigation("Workflows");
+            modelBuilder.Entity("Dashboard.Models.ArticleField", b =>
+                {
+                    b.Navigation("Steps");
                 });
 
             modelBuilder.Entity("Dashboard.Models.Topic", b =>
                 {
                     b.Navigation("Articles");
-                });
-
-            modelBuilder.Entity("Dashboard.Models.Workflow", b =>
-                {
-                    b.Navigation("Steps");
                 });
 #pragma warning restore 612, 618
         }

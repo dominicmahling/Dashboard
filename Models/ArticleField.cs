@@ -2,19 +2,19 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Dashboard.Models;
 
-public class Workflow
+public class ArticleField
 {
-    [Key]
     public int Id { get; set; }
 
     [Required]
-    [MaxLength(100)]
-    public string Name { get; set; } = string.Empty;
+    [MaxLength(10)]
+    public string FieldType { get; set; } = "text";
 
-    public int Position { get; set; }
+    public string? Content { get; set; }
+
+    public int Order { get; set; }
 
     public int ArticleId { get; set; }
-
     public Article Article { get; set; } = null!;
 
     public ICollection<WorkflowStep> Steps { get; set; } = new List<WorkflowStep>();

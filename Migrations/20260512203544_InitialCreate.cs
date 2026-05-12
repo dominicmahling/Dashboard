@@ -50,6 +50,28 @@ namespace Dashboard.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "ArticleFields",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    FieldType = table.Column<string>(type: "TEXT", maxLength: 10, nullable: false),
+                    Content = table.Column<string>(type: "TEXT", nullable: true),
+                    Order = table.Column<int>(type: "INTEGER", nullable: false),
+                    ArticleId = table.Column<int>(type: "INTEGER", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ArticleFields", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ArticleFields_Articles_ArticleId",
+                        column: x => x.ArticleId,
+                        principalTable: "Articles",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "WorkflowSteps",
                 columns: table => new
                 {
@@ -60,18 +82,23 @@ namespace Dashboard.Migrations
                     Order = table.Column<int>(type: "INTEGER", nullable: false),
                     Completed = table.Column<bool>(type: "INTEGER", nullable: false),
                     CompletedAt = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    ArticleId = table.Column<int>(type: "INTEGER", nullable: false)
+                    ArticleFieldId = table.Column<int>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_WorkflowSteps", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_WorkflowSteps_Articles_ArticleId",
-                        column: x => x.ArticleId,
-                        principalTable: "Articles",
+                        name: "FK_WorkflowSteps_ArticleFields_ArticleFieldId",
+                        column: x => x.ArticleFieldId,
+                        principalTable: "ArticleFields",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ArticleFields_ArticleId",
+                table: "ArticleFields",
+                column: "ArticleId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Articles_TopicId",
@@ -79,9 +106,9 @@ namespace Dashboard.Migrations
                 column: "TopicId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_WorkflowSteps_ArticleId",
+                name: "IX_WorkflowSteps_ArticleFieldId",
                 table: "WorkflowSteps",
-                column: "ArticleId");
+                column: "ArticleFieldId");
         }
 
         /// <inheritdoc />
@@ -89,6 +116,9 @@ namespace Dashboard.Migrations
         {
             migrationBuilder.DropTable(
                 name: "WorkflowSteps");
+
+            migrationBuilder.DropTable(
+                name: "ArticleFields");
 
             migrationBuilder.DropTable(
                 name: "Articles");
