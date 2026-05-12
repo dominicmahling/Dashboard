@@ -56,6 +56,8 @@ bld/
 ## Database files
 *.db
 *.db-journal
+*.db-shm
+*.db-wal
 
 ## IDE
 .idea/
