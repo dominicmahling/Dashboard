@@ -197,7 +197,12 @@ else
     {
         if (editMode)
         {
-            await JS.InvokeVoidAsync("FieldEditor.destroy");
+            try
+            {
+                if (fieldEditorModule != null)
+                    await fieldEditorModule.InvokeVoidAsync("destroy");
+            }
+            catch { }
             await SaveAllFields();
             await LoadFields();
         }
