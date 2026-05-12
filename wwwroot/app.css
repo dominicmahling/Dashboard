@@ -321,6 +321,13 @@ h1:focus {
     transition: background-color 0.15s;
 }
 
+.step-desc-view {
+    color: #d0d0d0;
+    font-size: 0.85em;
+    white-space: pre-line;
+    line-height: 1.4;
+}
+
 input, textarea, select {
     background-color: var(--bg-secondary) !important;
     border-color: var(--border-color) !important;
