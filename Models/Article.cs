@@ -19,4 +19,6 @@ public class Article
     public int TopicId { get; set; }
 
     public Topic Topic { get; set; } = null!;
+
+    public ICollection<WorkflowStep> WorkflowSteps { get; set; } = new List<WorkflowStep>();
 }

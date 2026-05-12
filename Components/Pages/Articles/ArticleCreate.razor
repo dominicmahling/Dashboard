@@ -7,157 +7,39 @@
 
 <h1>New Article</h1>
 
-<div class="mt-3">
-    <WorkflowSteps CurrentStep="currentStep" Steps="workflowSteps" />
-</div>
+<EditForm Model="article" FormName="new-article" OnValidSubmit="HandleValidSubmit" class="mt-3">
+    <DataAnnotationsValidator />
 
-<div class="card mt-4">
-    <div class="card-body">
-        @switch (currentStep)
-        {
-            case 0:
-                <h5>Research & Notes</h5>
-                <p class="text-muted">Gather your thoughts, links, and reference material.</p>
-                <textarea class="form-control" rows="8" @bind="researchNotes" @bind:after="OnResearchChange"></textarea>
-                break;
-            case 1:
-                <h5>Outline</h5>
-                <p class="text-muted">Structure your article with headings and key points.</p>
-                <textarea class="form-control" rows="8" @bind="outline" @bind:after="OnOutlineChange"></textarea>
-                break;
-            case 2:
-                <h5>Draft</h5>
-                <p class="text-muted">Write the full article content.</p>
-                <div class="mb-3">
-                    <label class="form-label">Title</label>
-                    <input type="text" class="form-control" @bind="articleTitle" @bind:after="OnDraftChange" />
-                </div>
-                <textarea class="form-control" rows="12" @bind="content" @bind:after="OnDraftChange"></textarea>
-                break;
-            case 3:
-                <h5>Review</h5>
-                <p class="text-muted">Preview your article before saving.</p>
-                <div class="preview-box p-3">
-                    <h4>@(string.IsNullOrWhiteSpace(articleTitle) ? "Untitled" : articleTitle)</h4>
-                    <div class="mt-3">@((MarkupString)FormatContent(content))</div>
-                </div>
-                <div class="mt-3">
-                    <label class="form-check-label">
-                        <input type="checkbox" class="form-check-input" @bind="reviewApproved" />
-                        I have reviewed and this is ready to save.
-                    </label>
-                </div>
-                break;
-            case 4:
-                <h5>Save</h5>
-                <p class="text-muted">Save your article to the database.</p>
-                <button class="btn btn-primary btn-lg" @onclick="SaveArticle" disabled="@(reviewApproved == false)">Save Article</button>
-                break;
-        }
+    <div class="mb-3">
+        <label class="form-label">Title</label>
+        <InputText @bind-Value="article.Title" class="form-control" />
+        <ValidationMessage For="@(() => article.Title)" />
     </div>
-</div>
 
-<div class="mt-3 d-flex gap-2">
-    @if (currentStep > 0)
-    {
-        <button class="btn btn-outline-secondary" @onclick="PrevStep">Previous</button>
-    }
-    @if (currentStep < workflowSteps.Count - 1)
-    {
-        <button class="btn btn-primary" @onclick="NextStep">Next</button>
-    }
-    <button class="btn btn-outline-danger ms-auto" @onclick="ResetWorkflow">Reset</button>
-    <a href="/topics/@TopicId" class="btn btn-secondary">Cancel</a>
-</div>
+    <div class="mb-3">
+        <label class="form-label">Content</label>
+        <InputTextArea @bind-Value="article.Content" class="form-control" rows="12" />
+        <ValidationMessage For="@(() => article.Content)" />
+    </div>
+
+    <button type="submit" class="btn btn-primary">Create</button>
+    <a href="/topics/@TopicId" class="btn btn-secondary ms-2">Cancel</a>
+</EditForm>
 
 @code {
     [Parameter] public int TopicId { get; set; }
+    private Article article = new();
 
-    private int currentStep = 0;
-    private bool reviewApproved;
-
-    private string researchNotes = "";
-    private string outline = "";
-    private string articleTitle = "";
-    private string content = "";
-
-    private List<WorkflowSteps.WorkflowStepItem> workflowSteps = new()
+    protected override void OnInitialized()
     {
-        new() { Name = "Research", Completed = false },
-        new() { Name = "Outline", Completed = false },
-        new() { Name = "Draft", Completed = false },
-        new() { Name = "Review", Completed = false },
-        new() { Name = "Save", Completed = false }
-    };
-
-    private void NextStep()
-    {
-        if (currentStep < workflowSteps.Count - 1)
-        {
-            currentStep++;
-        }
+        article.TopicId = TopicId;
     }
 
-    private void PrevStep()
+    private async Task HandleValidSubmit()
     {
-        if (currentStep > 0)
-        {
-            currentStep--;
-        }
-    }
-
-    private void OnResearchChange()
-    {
-        workflowSteps[0].Completed = !string.IsNullOrWhiteSpace(researchNotes);
-    }
-
-    private void OnOutlineChange()
-    {
-        workflowSteps[1].Completed = !string.IsNullOrWhiteSpace(outline);
-    }
-
-    private void OnDraftChange()
-    {
-        workflowSteps[2].Completed = !string.IsNullOrWhiteSpace(articleTitle) && !string.IsNullOrWhiteSpace(content);
-    }
-
-    private async Task SaveArticle()
-    {
-        var article = new Article
-        {
-            Title = articleTitle,
-            Content = content,
-            TopicId = TopicId
-        };
-
         await using var db = await DbFactory.CreateDbContextAsync();
         db.Articles.Add(article);
         await db.SaveChangesAsync();
-
-        workflowSteps[4].Completed = true;
-        StateHasChanged();
-
-        await Task.Delay(500);
-        NavigationManager.NavigateTo($"/topics/{TopicId}");
-    }
-
-    private void ResetWorkflow()
-    {
-        currentStep = 0;
-        reviewApproved = false;
-        researchNotes = "";
-        outline = "";
-        articleTitle = "";
-        content = "";
-        foreach (var step in workflowSteps)
-        {
-            step.Completed = false;
-        }
-    }
-
-    private static string FormatContent(string? text)
-    {
-        if (string.IsNullOrEmpty(text)) return "<em class='text-muted'>No content yet.</em>";
-        return System.Net.WebUtility.HtmlEncode(text).Replace("\n", "<br>");
+        NavigationManager.NavigateTo($"/articles/{article.Id}/workflow");
     }
 }

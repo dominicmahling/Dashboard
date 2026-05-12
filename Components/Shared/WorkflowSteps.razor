@@ -7,7 +7,7 @@
         var isNext = index == CurrentStep + 1;
         var cssClass = isCurrent ? "active" : step.Completed ? "completed" : isNext ? "next" : "";
 
-        <div class="step @cssClass" @onclick="() => OnStepClick(index)">
+        <div class="step @cssClass" @onclick="() => OnStepClick.InvokeAsync(index)">
             <div class="step-indicator">
                 @if (step.Completed)
                 {
@@ -31,15 +31,7 @@
 @code {
     [Parameter, EditorRequired] public int CurrentStep { get; set; }
     [Parameter, EditorRequired] public List<WorkflowStepItem> Steps { get; set; } = new();
-    [Parameter] public EventCallback<int> OnStepCompleted { get; set; }
-
-    private async Task OnStepClick(int index)
-    {
-        if (index < CurrentStep || index == CurrentStep + 1)
-        {
-            CurrentStep = index;
-        }
-    }
+    [Parameter] public EventCallback<int> OnStepClick { get; set; }
 
     public class WorkflowStepItem
     {

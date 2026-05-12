@@ -14,7 +14,8 @@ else
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h1>@article.Title</h1>
         <div>
-            <a href="/articles/@article.Id/edit" class="btn btn-outline-secondary">Edit</a>
+            <a href="/articles/@article.Id/workflow" class="btn btn-outline-primary">Workflow</a>
+            <a href="/articles/@article.Id/edit" class="btn btn-outline-secondary ms-2">Edit</a>
             <button class="btn btn-outline-danger ms-2" @onclick="DeleteArticle">Delete</button>
         </div>
     </div>

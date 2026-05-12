@@ -29,10 +29,16 @@
 - `/topics/new` — New topic form
 - `/topics/{id}` — Topic details with article list (delete articles)
 - `/topics/{id}/edit` — Edit topic
-- `/topics/{topicId}/articles/new` — New article form
-- `/articles/{id}` — Article view with delete button
+- `/topics/{topicId}/articles/new` — New article form (redirects to workflow after save)
+- `/articles/{id}` — Article view with delete button + workflow link
 - `/articles/{id}/edit` — Edit article
+- `/articles/{id}/workflow` — Workflow management (add/remove steps, track completion)
 - `/search` — Full-text search across topics and articles
+
+## Workflow
+- `WorkflowStep` model: linked to Article, has Name, Description, Order, Completed, CompletedAt
+- Workflow page: add steps, click to navigate, mark complete, auto-resets when all done
+- `WorkflowSteps` shared component: visual step indicator with clickable steps
 
 ## Planned Features
 - Script/DB query execution page
