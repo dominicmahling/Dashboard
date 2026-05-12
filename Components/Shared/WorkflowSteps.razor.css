@@ -1,0 +1,112 @@
+.workflow-steps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    padding: 1rem 0;
+}
+
+.step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    padding: 0.5rem;
+    transition: transform 0.15s ease;
+}
+
+.step:hover {
+    transform: scale(1.05);
+}
+
+.step-indicator {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.9rem;
+    background-color: var(--bg-tertiary);
+    border: 2px solid var(--border-color);
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+}
+
+.step-label {
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-align: center;
+    transition: color 0.2s ease;
+}
+
+.step.completed .step-indicator {
+    background-color: #2ecc71;
+    border-color: #2ecc71;
+    color: white;
+}
+
+.step.completed .step-label {
+    color: #2ecc71;
+}
+
+.step.active .step-indicator {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+    color: white;
+    box-shadow: 0 0 0 4px rgba(0, 120, 212, 0.2);
+}
+
+.step.active .step-label {
+    color: var(--accent-color);
+    font-weight: 600;
+}
+
+.step.next .step-indicator {
+    border-color: var(--accent-color);
+    border-style: dashed;
+    color: var(--accent-color);
+}
+
+.step.next .step-label {
+    color: var(--accent-color);
+}
+
+.step-connector {
+    width: 3rem;
+    height: 2px;
+    background-color: var(--border-color);
+    margin-bottom: 1.5rem;
+    transition: background-color 0.2s ease;
+}
+
+.step-connector.completed {
+    background-color: #2ecc71;
+}
+
+.checkmark {
+    font-size: 1rem;
+}
+
+@media (max-width: 640px) {
+    .workflow-steps {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .step-connector {
+        width: 1.5rem;
+    }
+
+    .step-label {
+        font-size: 0.65rem;
+    }
+
+    .step-indicator {
+        width: 2rem;
+        height: 2rem;
+        font-size: 0.8rem;
+    }
+}

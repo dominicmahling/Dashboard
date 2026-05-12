@@ -1,0 +1,49 @@
+<div class="workflow-steps">
+    @for (int i = 0; i < Steps.Count; i++)
+    {
+        var index = i;
+        var step = Steps[index];
+        var isCurrent = index == CurrentStep;
+        var isNext = index == CurrentStep + 1;
+        var cssClass = isCurrent ? "active" : step.Completed ? "completed" : isNext ? "next" : "";
+
+        <div class="step @cssClass" @onclick="() => OnStepClick(index)">
+            <div class="step-indicator">
+                @if (step.Completed)
+                {
+                    <span class="checkmark">&#10003;</span>
+                }
+                else
+                {
+                    @(index + 1)
+                }
+            </div>
+            <div class="step-label">@step.Name</div>
+        </div>
+
+        @if (index < Steps.Count - 1)
+        {
+            <div class="step-connector @(step.Completed ? "completed" : "")"></div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public int CurrentStep { get; set; }
+    [Parameter, EditorRequired] public List<WorkflowStepItem> Steps { get; set; } = new();
+    [Parameter] public EventCallback<int> OnStepCompleted { get; set; }
+
+    private async Task OnStepClick(int index)
+    {
+        if (index < CurrentStep || index == CurrentStep + 1)
+        {
+            CurrentStep = index;
+        }
+    }
+
+    public class WorkflowStepItem
+    {
+        public string Name { get; set; } = "";
+        public bool Completed { get; set; }
+    }
+}
