@@ -156,3 +156,94 @@ h1:focus {
     border-radius: 0.375rem;
     color: var(--text-primary);
 }
+
+.workflow-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.workflow-step-item {
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    background-color: var(--bg-secondary);
+    transition: all 0.2s ease;
+}
+
+.workflow-step-item.current {
+    border-color: var(--accent-color);
+    background-color: rgba(0, 120, 212, 0.08);
+    box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.15);
+}
+
+.workflow-step-item.done {
+    opacity: 0.7;
+}
+
+.step-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.step-indicator {
+    width: 2.25rem;
+    height: 2.25rem;
+    min-width: 2.25rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.9rem;
+    background-color: var(--bg-tertiary);
+    border: 2px solid var(--border-color);
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+}
+
+.step-indicator.completed {
+    background-color: #2ecc71;
+    border-color: #2ecc71;
+    color: white;
+}
+
+.step-indicator.active {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+    color: white;
+    box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.2);
+}
+
+.step-info {
+    flex: 1;
+}
+
+.step-name {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.step-desc {
+    margin: 0.25rem 0 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.step-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.step-divider {
+    height: 1.5rem;
+    width: 2px;
+    background-color: var(--border-color);
+    margin-left: 1.125rem;
+    transition: background-color 0.2s ease;
+}
+
+.step-divider.completed {
+    background-color: #2ecc71;
+}

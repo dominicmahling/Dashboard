@@ -16,51 +16,76 @@ else
             <h1 class="mb-1">Workflow</h1>
             <p class="text-muted mb-0">@article.Title</p>
         </div>
-        <a href="/articles/@article.Id" class="btn btn-outline-secondary">Back to Article</a>
+        <div>
+            <button class="btn btn-outline-warning me-2" @onclick="ResetWorkflow">Reset</button>
+            <a href="/articles/@article.Id" class="btn btn-outline-secondary">Back to Article</a>
+        </div>
     </div>
 
-    <div class="row">
-        <div class="col-md-4">
-            <WorkflowSteps CurrentStep="currentStep" Steps="workflowStepItems" OnStepClick="GoToStep" OnRemoveStep="RemoveStepByIndex" />
-
-            <div class="mt-4">
-                <h6>Add Step</h6>
-                <div class="input-group input-group-sm mb-2">
-                    <input type="text" class="form-control" placeholder="Step name" @bind="newStepName" />
-                    <button class="btn btn-success" @onclick="AddStep">Add</button>
-                </div>
-                <input type="text" class="form-control form-control-sm mb-2" placeholder="Description (optional)" @bind="newStepDesc" />
-
-                <button class="btn btn-outline-warning btn-sm" @onclick="ResetWorkflow">Reset Workflow</button>
-            </div>
-        </div>
-
-        <div class="col-md-8">
-            @if (steps.Any() && currentStep >= 0 && currentStep < steps.Count)
+    @if (steps.Any())
+    {
+        <div class="workflow-list">
+            @foreach (var (step, index) in steps.Select((s, i) => (s, i)))
             {
-                var step = steps[currentStep];
-                <div class="card">
-                    <div class="card-body">
-                        <h5>@step.Name</h5>
-                        @if (!string.IsNullOrEmpty(step.Description))
-                        {
-                            <p class="text-muted">@step.Description</p>
-                        }
-                        @if (!step.Completed)
-                        {
-                            <button class="btn btn-primary mt-2" @onclick="() => CompleteStep(currentStep)">Mark Complete</button>
-                        }
-                        else
-                        {
-                            <span class="badge bg-success mt-2">Completed</span>
-                        }
+                var isCurrent = index == currentStep && !step.Completed;
+                <div class="workflow-step-item @(isCurrent ? "current" : "") @(step.Completed ? "done" : "")">
+                    <div class="step-header">
+                        <div class="step-indicator @(isCurrent ? "active" : "") @(step.Completed ? "completed" : "")">
+                            @if (step.Completed)
+                            {
+                                <span>&#10003;</span>
+                            }
+                            else
+                            {
+                                @(index + 1)
+                            }
+                        </div>
+                        <div class="step-info">
+                            <h5 class="step-name">@step.Name</h5>
+                            @if (!string.IsNullOrEmpty(step.Description))
+                            {
+                                <p class="step-desc">@step.Description</p>
+                            }
+                        </div>
+                        <div class="step-actions">
+                            @if (isCurrent)
+                            {
+                                <button class="btn btn-primary btn-sm" @onclick="() => CompleteStep(index)">Mark Complete</button>
+                            }
+                            else if (step.Completed)
+                            {
+                                <span class="badge bg-success">Done</span>
+                            }
+                            <button class="btn btn-sm btn-outline-danger ms-1" @onclick="() => RemoveStepByIndex(index)" title="Remove step">&times;</button>
+                        </div>
                     </div>
                 </div>
+                @if (index < steps.Count - 1)
+                {
+                    <div class="step-divider @(step.Completed ? "completed" : "")"></div>
+                }
             }
-            else if (!steps.Any())
-            {
-                <p class="text-muted">No steps yet. Add your first step on the left.</p>
-            }
+        </div>
+    }
+    else
+    {
+        <p class="text-muted">No steps yet. Add one below.</p>
+    }
+
+    <div class="card mt-4">
+        <div class="card-body">
+            <h6>Add Step</h6>
+            <div class="row g-2">
+                <div class="col-md-4">
+                    <input type="text" class="form-control" placeholder="Step name" @bind="newStepName" />
+                </div>
+                <div class="col-md-6">
+                    <input type="text" class="form-control" placeholder="Description (optional)" @bind="newStepDesc" />
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-success w-100" @onclick="AddStep">Add</button>
+                </div>
+            </div>
         </div>
     </div>
 }
@@ -69,7 +94,6 @@ else
     [Parameter] public int Id { get; set; }
     private Article? article;
     private List<WorkflowStep> steps = new();
-    private List<WorkflowSteps.WorkflowStepItem> workflowStepItems = new();
     private int currentStep = 0;
     private string newStepName = "";
     private string newStepDesc = "";
@@ -89,24 +113,10 @@ else
             .OrderBy(ws => ws.Order)
             .ToListAsync();
 
-        workflowStepItems = steps.Select(s => new WorkflowSteps.WorkflowStepItem
-        {
-            Name = s.Name,
-            Completed = s.Completed
-        }).ToList();
-
         currentStep = steps.FindIndex(s => !s.Completed);
         if (currentStep == -1 && steps.Any())
         {
             currentStep = steps.Count - 1;
-        }
-    }
-
-    private void GoToStep(int index)
-    {
-        if (index >= 0 && index < steps.Count)
-        {
-            currentStep = index;
         }
     }
 
@@ -116,7 +126,6 @@ else
 
         steps[index].Completed = true;
         steps[index].CompletedAt = DateTime.UtcNow;
-        workflowStepItems[index].Completed = true;
 
         await using var db = await DbFactory.CreateDbContextAsync();
         db.WorkflowSteps.Update(steps[index]);
@@ -151,7 +160,6 @@ else
         await db.SaveChangesAsync();
 
         steps.Add(step);
-        workflowStepItems.Add(new() { Name = step.Name, Completed = false });
         newStepName = "";
         newStepDesc = "";
         StateHasChanged();
@@ -160,19 +168,14 @@ else
     private async Task RemoveStepByIndex(int index)
     {
         if (index < 0 || index >= steps.Count) return;
-        await RemoveStep(steps[index].Id);
-    }
 
-    private async Task RemoveStep(int stepId)
-    {
         await using var db = await DbFactory.CreateDbContextAsync();
-        var step = await db.WorkflowSteps.FindAsync(stepId);
+        var step = await db.WorkflowSteps.FindAsync(steps[index].Id);
         if (step != null)
         {
             db.WorkflowSteps.Remove(step);
             await db.SaveChangesAsync();
-            steps.RemoveAll(s => s.Id == stepId);
-            workflowStepItems.RemoveAll(s => s.Name == step.Name);
+            steps.RemoveAt(index);
 
             if (currentStep >= steps.Count)
             {
@@ -198,11 +201,6 @@ else
         {
             step.Completed = false;
             step.CompletedAt = null;
-        }
-
-        foreach (var item in workflowStepItems)
-        {
-            item.Completed = false;
         }
 
         currentStep = 0;
