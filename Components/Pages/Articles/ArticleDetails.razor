@@ -16,12 +16,18 @@
 else
 {
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h1>@article.Title</h1>
+        @if (editMode)
+        {
+            <input type="text" class="form-control form-control-lg me-3" style="font-size:1.5rem;font-weight:700" @bind="article.Title" @bind:after="SaveArticleTitle" />
+        }
+        else
+        {
+            <h1>@article.Title</h1>
+        }
         <div>
             <button class="btn @(editMode ? "btn-primary" : "btn-outline-secondary")" @onclick="ToggleEdit">
                 @(editMode ? "Done Editing" : "Edit")
             </button>
-            <a href="/articles/@article.Id/edit" class="btn btn-outline-secondary ms-2">Settings</a>
             <button class="btn btn-outline-danger ms-2" @onclick="DeleteArticle">Delete</button>
         </div>
     </div>
@@ -496,6 +502,15 @@ else
         if (index >= fields.Count - 1) return;
         (fields[index], fields[index + 1]) = (fields[index + 1], fields[index]);
         StateHasChanged();
+    }
+
+    private async Task SaveArticleTitle()
+    {
+        if (article == null) return;
+        article.UpdatedAt = DateTime.UtcNow;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        db.Articles.Update(article);
+        await db.SaveChangesAsync();
     }
 
     private async Task SaveField(ArticleField field)
