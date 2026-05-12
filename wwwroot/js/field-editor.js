@@ -3,6 +3,9 @@ class FieldEditor {
         if (window.Sortable) {
             const el = document.getElementById(containerId);
             if (el) {
+                if (this.sortable) {
+                    this.sortable.destroy();
+                }
                 this.sortable = new Sortable(el, {
                     handle: '.drag-handle',
                     animation: 150,

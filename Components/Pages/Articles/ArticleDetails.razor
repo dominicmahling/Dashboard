@@ -8,9 +8,6 @@
 
 <PageTitle>@(article?.Title ?? "Article")</PageTitle>
 
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
-<script src="/js/field-editor.js"></script>
-
 @if (article == null)
 {
     <p><em>Loading...</em></p>
@@ -370,10 +367,17 @@ else
 
     public async ValueTask DisposeAsync()
     {
-        if (dotNetRef != null)
+        try
         {
-            await JS.InvokeVoidAsync("FieldEditor.destroy");
-            dotNetRef.Dispose();
+            if (dotNetRef != null)
+            {
+                await JS.InvokeVoidAsync("FieldEditor.destroy");
+                dotNetRef.Dispose();
+            }
+        }
+        catch
+        {
+            dotNetRef?.Dispose();
         }
     }
 
