@@ -1872,6 +1872,7 @@ pre code {
   outline: none;
   user-select: none;
   position: relative;
+  text-decoration: none;
 }
 
 .back-button::before {
