@@ -106,13 +106,13 @@ An article is made of ordered **fields** (ArticleField), each with type `text`, 
 - Responsive breakpoints at 768px
 
 ## Back Button
-- `<a>` tag in MainLayout with class `back-button` (static SSR — no Blazor event handlers, plain HTML)
+- `<button>` in MainLayout with class `back-button` (static SSR — uses plain `onclick` JS, no Blazor event handlers)
 - Glassmorphism pill with accent-colored icon circle
-- JS module `DashboardNavigation` in `wwwroot/js/app.js` dynamically sets `href` to parent page and hides button when at root `/`
-- Route-aware parent mapping (not just URL stripping — `/articles/1` has no parent, `/topics/1/edit` → `/topics/1`, `/topics/1` → `/topics`, etc.)
-- Overrides `history.pushState` + `popstate` to update button on navigation
-- Blazor enhanced navigation intercepts the `<a>` click for client-side routing (no full reload)
-- Never navigates outside the dashboard — always goes to a valid page
+- JS module `DashboardNavigation` in `wwwroot/js/app.js` calls `history.back()` and tracks in-app navigation depth
+- Depth stored in `sessionStorage` (`_navDepth`) — survives page reloads within same tab
+- Overrides `history.pushState` to increment depth, `popstate` handler to decrement
+- Button hidden when depth ≤ 1 (no history to go back to) — e.g. fresh page load on `/articles/1`
+- Never navigates outside the dashboard
 
 ## Migrations
 - `20260512203544_InitialCreate` — initial schema
