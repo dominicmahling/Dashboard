@@ -1,4 +1,5 @@
 @page "/search"
+@using Microsoft.EntityFrameworkCore
 @inject IDbContextFactory<AppDbContext> DbFactory
 @rendermode InteractiveServer
 
@@ -6,37 +7,58 @@
 
 <h1>Search</h1>
 
-<div class="mt-3">
-    <div class="input-group input-group-lg">
-        <input type="text" class="form-control" placeholder="Search topics and articles..." @bind="query" @onkeydown="HandleKeyDown" />
+<div class="search-box mt-3">
+    <div class="search-input-group">
+        <i class="bi bi-search search-input-icon"></i>
+        <input type="text" class="form-control search-input" placeholder="Search topics and articles..." @bind="query" @onkeydown="HandleKeyDown" />
         <button class="btn btn-primary" @onclick="RunSearch">Search</button>
     </div>
 </div>
 
-@if (results.Any())
+@if (searched && !results.Any())
+{
+    <div class="empty-state mt-4">
+        <div class="empty-illustration illustration-search">
+            <div class="search-lens"></div>
+            <div class="search-handle"></div>
+        </div>
+        <h3>No results found</h3>
+        <p>Try a different search term.</p>
+    </div>
+}
+else if (results.Any())
 {
     <div class="mt-4">
-        <h5>@results.Count result(s)</h5>
-        <div class="list-group mt-2">
+        <div class="d-flex align-items-center gap-2 mb-3">
+            <h5 style="margin:0;color:var(--text-secondary)">@results.Count result(s)</h5>
+        </div>
+        <div class="search-results">
             @foreach (var r in results)
             {
-                <div class="list-group-item list-group-item-action">
-                    <div class="d-flex w-100 justify-content-between">
-                        <a href="@r.Url" class="text-decoration-none fw-bold">@r.Title</a>
-                        <small class="text-muted">@r.Type</small>
+                <a href="@r.Url" class="search-result-item">
+                    <div class="search-result-type @(r.Type == "Topic" ? "type-topic" : "type-article")">
+                        @if (r.Type == "Topic")
+                        {
+                            <i class="bi bi-folder-fill"></i>
+                        }
+                        else
+                        {
+                            <i class="bi bi-file-text-fill"></i>
+                        }
                     </div>
-                    @if (!string.IsNullOrEmpty(r.Preview))
-                    {
-                        <p class="mb-1 text-muted small">@r.Preview</p>
-                    }
-                </div>
+                    <div class="search-result-content">
+                        <span class="search-result-title">@r.Title</span>
+                        @if (!string.IsNullOrEmpty(r.Preview))
+                        {
+                            <span class="search-result-preview">@r.Preview</span>
+                        }
+                        <span class="search-result-type-label">@r.Type</span>
+                    </div>
+                    <i class="bi bi-chevron-right search-result-arrow"></i>
+                </a>
             }
         </div>
     </div>
-}
-else if (searched)
-{
-    <p class="text-muted mt-3">No results found.</p>
 }
 
 @code {

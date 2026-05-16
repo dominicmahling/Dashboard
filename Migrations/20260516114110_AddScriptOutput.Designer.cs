@@ -3,6 +3,7 @@ using System;
 using Dashboard.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Dashboard.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260516114110_AddScriptOutput")]
+    partial class AddScriptOutput
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.7");
@@ -126,9 +129,6 @@ namespace Dashboard.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
-                    b.Property<bool>("IsScriptStep")
-                        .HasColumnType("INTEGER");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -136,12 +136,6 @@ namespace Dashboard.Migrations
 
                     b.Property<int>("Order")
                         .HasColumnType("INTEGER");
-
-                    b.Property<string>("Script")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ScriptOutput")
-                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 

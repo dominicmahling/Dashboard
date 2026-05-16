@@ -1,9 +1,11 @@
 @page "/articles/{id:int}"
 @using Microsoft.EntityFrameworkCore
 @using Markdig
+@using Dashboard.Services
 @inject IDbContextFactory<AppDbContext> DbFactory
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JS
+@inject ScriptExecutionService ScriptService
 @implements IAsyncDisposable
 @rendermode InteractiveServer
 
@@ -78,6 +80,8 @@ else
                                     @for (int si = 0; si < steps.Count; si++)
                                     {
                                         var s = steps[si];
+                                        var scriptExp = stepScriptExpanded.ContainsKey(s.Id) ? stepScriptExpanded[s.Id] : false;
+                                        var isStepExec = executingStepId == s.Id;
                                         <div class="step-row @(s.Completed ? "step-done" : "step-pending")">
                                             <div class="step-marker @(s.Completed ? "marker-done" : "marker-pending")">
                                                 @if (s.Completed) { <text>&#10003;</text> } else { @(si + 1) }
@@ -87,6 +91,53 @@ else
                                                 @if (!string.IsNullOrEmpty(s.Description))
                                                 {
                                                     <div class="step-desc-view">@s.Description</div>
+                                                }
+                                                <div class="mt-1 d-flex align-items-center gap-2">
+                                                    <label class="small text-muted" style="cursor:pointer">
+                                                        <input type="checkbox" class="form-check-input me-1" style="width:0.8rem;height:0.8rem" checked="@s.IsScriptStep" @onchange="() => ToggleStepIsScript(s.Id)" />
+                                                        Script step
+                                                    </label>
+                                                    @if (s.IsScriptStep)
+                                                    {
+                                                        <button class="btn btn-sm @(!string.IsNullOrEmpty(s.Script) ? "btn-outline-warning" : "btn-outline-secondary") py-0 px-1" @onclick="() => ToggleStepScript(s.Id)">
+                                                            @(scriptExp ? "&#9660; Editor" : "&#9654; Editor")
+                                                        </button>
+                                                    }
+                                                </div>
+                                                @if (s.IsScriptStep && scriptExp)
+                                                {
+                                                    <div class="mt-1 step-script-editor">
+                                                        <textarea class="form-control font-monospace" rows="4" @bind="s.Script" placeholder="# Write your PowerShell script here"></textarea>
+                                                        <div class="d-flex align-items-center gap-2 mt-1">
+                                                            <button class="btn btn-sm btn-primary py-0 px-2" @onclick="() => ExecuteStepScript(f.Id, s.Id)" disabled="@isStepExec">
+                                                                @if (isStepExec) { <text>Running...</text> } else { <text>&#9654; Run</text> }
+                                                            </button>
+                                                            @if (!string.IsNullOrEmpty(s.ScriptOutput))
+                                                            {
+                                                                <button class="btn btn-sm btn-outline-secondary py-0 px-2" @onclick="() => ClearStepScriptOutput(s)">Clear</button>
+                                                            }
+                                                        </div>
+                                                        @if (!string.IsNullOrEmpty(s.ScriptOutput))
+                                                        {
+                                                            var sResult = System.Text.Json.JsonSerializer.Deserialize<ScriptResult>(s.ScriptOutput);
+                                                            if (sResult != null)
+                                                            {
+                                                                <div class="script-output mt-1">
+                                                                    <div class="script-output-header @(sResult.Success ? "output-success" : "output-error")">
+                                                                        Exit: @sResult.ExitCode @(sResult.Success ? "&#10003;" : "&#10007;")
+                                                                    </div>
+                                                                    @if (!string.IsNullOrWhiteSpace(sResult.Output))
+                                                                    {
+                                                                        <pre class="script-output-body">@sResult.Output</pre>
+                                                                    }
+                                                                    @if (!string.IsNullOrWhiteSpace(sResult.Error))
+                                                                    {
+                                                                        <pre class="script-output-body output-error-text">@sResult.Error</pre>
+                                                                    }
+                                                                </div>
+                                                            }
+                                                        }
+                                                    </div>
                                                 }
                                             </div>
                                             <div class="step-actions">
@@ -118,6 +169,41 @@ else
                                 </div>
                             </div>
                         }
+                        else if (f.FieldType == "script")
+                        {
+                            var isExec = executingFieldId == f.Id;
+                            <textarea class="form-control font-monospace" rows="8" @bind="f.Content" @bind:after="() => SaveField(f)" placeholder="# Write your PowerShell script here"></textarea>
+                            <small class="text-muted mt-1 d-block">PowerShell script &middot; Click Execute to run</small>
+                            <div class="mt-2 d-flex align-items-center gap-2">
+                                <button class="btn btn-sm btn-primary" @onclick="() => ExecuteScript(f)" disabled="@isExec">
+                                    @if (isExec) { <text>Running...</text> } else { <text>&#9654; Execute</text> }
+                                </button>
+                                @if (!string.IsNullOrEmpty(f.ScriptOutput))
+                                {
+                                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => ClearScriptOutput(f)">Clear output</button>
+                                }
+                            </div>
+                            @if (!string.IsNullOrEmpty(f.ScriptOutput))
+                            {
+                                var result = System.Text.Json.JsonSerializer.Deserialize<ScriptResult>(f.ScriptOutput);
+                                if (result != null)
+                                {
+                                    <div class="script-output mt-2">
+                                        <div class="script-output-header @(result.Success ? "output-success" : "output-error")">
+                                            Exit code: @result.ExitCode @(result.Success ? "&#10003;" : "&#10007;")
+                                        </div>
+                                        @if (!string.IsNullOrWhiteSpace(result.Output))
+                                        {
+                                            <pre class="script-output-body">@result.Output</pre>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(result.Error))
+                                        {
+                                            <pre class="script-output-body output-error-text">@result.Error</pre>
+                                        }
+                                    </div>
+                                }
+                            }
+                        }
                     </div>
                 </div>
             }
@@ -126,7 +212,8 @@ else
 
             <div class="mt-3">
                 <button class="btn btn-success me-2" @onclick="() => AddText()">+ Text</button>
-                <button class="btn btn-success" @onclick="() => AddWorkflow()">+ Workflow</button>
+                <button class="btn btn-success me-2" @onclick="() => AddWorkflow()">+ Workflow</button>
+                <button class="btn btn-success" @onclick="() => AddScript()">+ Script</button>
             </div>
         }
         else
@@ -190,6 +277,7 @@ else
                                 {
                                     var s = steps[si];
                                     var isCur = si == currentIdx && !s.Completed;
+                                    var isStepExec = executingStepId == s.Id;
                                     <div class="step-row @(isCur ? "step-current" : "") @(s.Completed ? "step-done" : "step-pending")">
                                         <div class="step-marker @(isCur ? "marker-current" : s.Completed ? "marker-done" : "marker-pending")">
                                             @if (s.Completed) { <text>&#10003;</text> } else { @(si + 1) }
@@ -199,6 +287,54 @@ else
                                             @if (!string.IsNullOrEmpty(s.Description))
                                             {
                                                 <div class="step-desc-view">@s.Description</div>
+                                            }
+                                            @if (s.IsScriptStep)
+                                            {
+                                                <div class="mt-1">
+                                                    <button class="btn btn-sm @(isCur ? "btn-outline-warning" : "btn-outline-secondary") py-0 px-1" @onclick="() => ViewToggleStepScript(s.Id)">
+                                                        @(stepViewScriptId == s.Id ? "&#9660; Script" : "&#9654; Script")
+                                                    </button>
+                                                    @if (stepViewScriptId == s.Id)
+                                                    {
+                                                        @if (!string.IsNullOrEmpty(s.Script))
+                                                        {
+                                                            <pre class="step-script-code mt-1"><code>@s.Script</code></pre>
+                                                        }
+                                                        else
+                                                        {
+                                                            <div class="text-muted small mt-1">No script written yet</div>
+                                                        }
+                                                        <div class="d-flex align-items-center gap-2 mt-1">
+                                                            <button class="btn btn-sm btn-primary py-0 px-2" @onclick="() => ExecuteStepScript(field.Id, s.Id)" disabled="@isStepExec">
+                                                                @if (isStepExec) { <text>Running...</text> } else { <text>&#9654; Run</text> }
+                                                            </button>
+                                                            @if (!string.IsNullOrEmpty(s.ScriptOutput))
+                                                            {
+                                                                <button class="btn btn-sm btn-outline-secondary py-0 px-2" @onclick="() => ClearStepScriptOutput(s)">Clear</button>
+                                                            }
+                                                        </div>
+                                                        @if (!string.IsNullOrEmpty(s.ScriptOutput))
+                                                        {
+                                                            var sResult = System.Text.Json.JsonSerializer.Deserialize<ScriptResult>(s.ScriptOutput);
+                                                            if (sResult != null)
+                                                            {
+                                                                <div class="script-output mt-1">
+                                                                    <div class="script-output-header @(sResult.Success ? "output-success" : "output-error")">
+                                                                        Exit: @sResult.ExitCode @(sResult.Success ? "&#10003;" : "&#10007;")
+                                                                    </div>
+                                                                    @if (!string.IsNullOrWhiteSpace(sResult.Output))
+                                                                    {
+                                                                        <pre class="script-output-body">@sResult.Output</pre>
+                                                                    }
+                                                                    @if (!string.IsNullOrWhiteSpace(sResult.Error))
+                                                                    {
+                                                                        <pre class="script-output-body output-error-text">@sResult.Error</pre>
+                                                                    }
+                                                                </div>
+                                                            }
+                                                        }
+                                                    }
+                                                </div>
                                             }
                                         </div>
                                         <div class="step-actions">
@@ -217,6 +353,41 @@ else
                         }
                     </div>
                 }
+                else if (field.FieldType == "script" && !string.IsNullOrWhiteSpace(field.Content))
+                {
+                    var isExec = executingFieldId == field.Id;
+                    <div class="block-script mb-3">
+                        <div class="script-header">
+                            <span class="script-label">Script</span>
+                        </div>
+                        <pre class="script-code"><code>@field.Content</code></pre>
+                        <div class="script-actions">
+                            <button class="btn btn-sm btn-primary" @onclick="() => ExecuteScript(field)" disabled="@isExec">
+                                @if (isExec) { <text>Running...</text> } else { <text>&#9654; Execute</text> }
+                            </button>
+                        </div>
+                        @if (!string.IsNullOrEmpty(field.ScriptOutput))
+                        {
+                            var result = System.Text.Json.JsonSerializer.Deserialize<ScriptResult>(field.ScriptOutput);
+                            if (result != null)
+                            {
+                                <div class="script-output mt-2">
+                                    <div class="script-output-header @(result.Success ? "output-success" : "output-error")">
+                                        Exit code: @result.ExitCode @(result.Success ? "&#10003;" : "&#10007;")
+                                    </div>
+                                    @if (!string.IsNullOrWhiteSpace(result.Output))
+                                    {
+                                        <pre class="script-output-body">@result.Output</pre>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(result.Error))
+                                    {
+                                        <pre class="script-output-body output-error-text">@result.Error</pre>
+                                    }
+                                </div>
+                            }
+                        }
+                    </div>
+                }
             }
         }
     </div>
@@ -232,6 +403,10 @@ else
     private string newStepDesc = "";
     private Dictionary<int, bool> manualExpanded = new();
     private bool dismissToast;
+    private int? executingFieldId;
+    private int? executingStepId;
+    private Dictionary<int, bool> stepScriptExpanded = new();
+    private int? stepViewScriptId;
     private static readonly MarkdownPipeline MarkdownPipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
 
     protected override async Task OnInitializedAsync()
@@ -462,6 +637,7 @@ else
 
     private async Task AddText() => await AddField("text");
     private async Task AddWorkflow() => await AddField("workflow");
+    private async Task AddScript() => await AddField("script");
 
     private async Task AddField(string fieldType)
     {
@@ -527,6 +703,135 @@ else
         }
     }
 
+    private async Task ExecuteScript(ArticleField field)
+    {
+        if (string.IsNullOrWhiteSpace(field.Content)) return;
+        executingFieldId = field.Id;
+        StateHasChanged();
+
+        try
+        {
+            var result = await ScriptService.ExecuteAsync(field.Content);
+
+            await using var db = await DbFactory.CreateDbContextAsync();
+            var existing = await db.ArticleFields.FindAsync(field.Id);
+            if (existing != null)
+            {
+                existing.ScriptOutput = System.Text.Json.JsonSerializer.Serialize(result);
+                await db.SaveChangesAsync();
+                field.ScriptOutput = existing.ScriptOutput;
+            }
+        }
+        finally
+        {
+            executingFieldId = null;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ClearScriptOutput(ArticleField field)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var existing = await db.ArticleFields.FindAsync(field.Id);
+        if (existing != null)
+        {
+            existing.ScriptOutput = null;
+            await db.SaveChangesAsync();
+            field.ScriptOutput = null;
+        }
+    }
+
+    private void ToggleStepScript(int stepId)
+    {
+        if (stepScriptExpanded.TryGetValue(stepId, out var val))
+            stepScriptExpanded[stepId] = !val;
+        else
+            stepScriptExpanded[stepId] = true;
+    }
+
+    private async Task ToggleStepIsScript(int stepId)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var step = await db.WorkflowSteps.FindAsync(stepId);
+        if (step != null)
+        {
+            step.IsScriptStep = !step.IsScriptStep;
+            if (!step.IsScriptStep)
+            {
+                step.Script = null;
+                step.ScriptOutput = null;
+            }
+            await db.SaveChangesAsync();
+            foreach (var f in fields)
+            {
+                var s = f.Steps.FirstOrDefault(x => x.Id == stepId);
+                if (s != null)
+                {
+                    s.IsScriptStep = step.IsScriptStep;
+                    if (!s.IsScriptStep)
+                    {
+                        s.Script = null;
+                        s.ScriptOutput = null;
+                    }
+                }
+            }
+            stepScriptExpanded.Remove(stepId);
+        }
+    }
+
+    private void ViewToggleStepScript(int stepId)
+    {
+        stepViewScriptId = stepViewScriptId == stepId ? null : stepId;
+    }
+
+    private async Task ExecuteStepScript(int fieldId, int stepId)
+    {
+        WorkflowStep? step = null;
+        foreach (var f in fields)
+        {
+            if (f.Id == fieldId)
+            {
+                step = f.Steps.FirstOrDefault(s => s.Id == stepId);
+                break;
+            }
+        }
+        if (step == null || string.IsNullOrWhiteSpace(step.Script)) return;
+
+        executingStepId = stepId;
+        StateHasChanged();
+
+        try
+        {
+            var result = await ScriptService.ExecuteAsync(step.Script);
+
+            await using var db = await DbFactory.CreateDbContextAsync();
+            var dbStep = await db.WorkflowSteps.FindAsync(stepId);
+            if (dbStep != null)
+            {
+                dbStep.ScriptOutput = System.Text.Json.JsonSerializer.Serialize(result);
+                await db.SaveChangesAsync();
+                step.ScriptOutput = dbStep.ScriptOutput;
+            }
+        }
+        finally
+        {
+            executingStepId = null;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ClearStepScriptOutput(WorkflowStep step)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var dbStep = await db.WorkflowSteps.FindAsync(step.Id);
+        if (dbStep != null)
+        {
+            dbStep.ScriptOutput = null;
+            await db.SaveChangesAsync();
+            step.ScriptOutput = null;
+        }
+    }
+
     private async Task SaveAllFields()
     {
         await using var db = await DbFactory.CreateDbContextAsync();
@@ -537,6 +842,25 @@ else
             {
                 existing.Content = fields[i].Content;
                 existing.Order = i;
+            }
+
+            if (fields[i].FieldType == "workflow")
+            {
+                foreach (var step in fields[i].Steps)
+                {
+                    var dbStep = await db.WorkflowSteps.FindAsync(step.Id);
+                    if (dbStep != null)
+                    {
+                        dbStep.Name = step.Name;
+                        dbStep.Description = step.Description;
+                        dbStep.IsScriptStep = step.IsScriptStep;
+                        dbStep.Script = step.Script;
+                        dbStep.Order = step.Order;
+                        dbStep.Completed = step.Completed;
+                        dbStep.CompletedAt = step.CompletedAt;
+                        dbStep.CompletedBy = step.CompletedBy;
+                    }
+                }
             }
         }
         await db.SaveChangesAsync();

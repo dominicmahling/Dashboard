@@ -7,10 +7,13 @@
 
     <main>
         <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
         </div>
 
         <article class="content px-4">
+            <button class="back-button" onclick="DashboardNavigation.goBack()" title="Go back">
+                <i class="bi bi-arrow-left"></i>
+                <span>Back</span>
+            </button>
             @Body
         </article>
     </main>
@@ -19,5 +22,5 @@
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.
     <a href="." class="reload">Reload</a>
-    <span class="dismiss">🗙</span>
+    <span class="dismiss">&#x2715;</span>
 </div>

@@ -1,7 +1,114 @@
 ﻿@page "/"
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AppDbContext> DbFactory
+@rendermode InteractiveServer
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Dashboard</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="welcome-section">
+    <h1>Dashboard</h1>
+    <p class="welcome-subtitle">Your topic and workflow management hub</p>
+</div>
 
-Welcome to your new app.
+@if (stats == null)
+{
+    <div class="loading-placeholder">
+        <div class="loading-bar"></div>
+    </div>
+}
+else
+{
+    <div class="stats-grid">
+        <a href="topics" class="stat-card">
+            <div class="stat-icon stat-icon-topics">
+                <i class="bi bi-folder-fill"></i>
+            </div>
+            <div class="stat-info">
+                <span class="stat-value">@stats.TopicCount</span>
+                <span class="stat-label">Topics</span>
+            </div>
+        </a>
+        <a href="topics" class="stat-card">
+            <div class="stat-icon stat-icon-articles">
+                <i class="bi bi-file-text-fill"></i>
+            </div>
+            <div class="stat-info">
+                <span class="stat-value">@stats.ArticleCount</span>
+                <span class="stat-label">Articles</span>
+            </div>
+        </a>
+        <a href="search" class="stat-card">
+            <div class="stat-icon stat-icon-search">
+                <i class="bi bi-search"></i>
+            </div>
+            <div class="stat-info">
+                <span class="stat-value">Search</span>
+                <span class="stat-label">Find anything</span>
+            </div>
+        </a>
+    </div>
+
+    @if (stats.RecentArticles.Any())
+    {
+        <h2 class="section-title">Recent Articles</h2>
+        <div class="recent-list">
+            @foreach (var article in stats.RecentArticles)
+            {
+                <a href="/articles/@article.Id" class="recent-item">
+                    <div class="recent-item-icon">
+                        <i class="bi bi-file-text"></i>
+                    </div>
+                    <div class="recent-item-content">
+                        <span class="recent-item-title">@article.Title</span>
+                        <span class="recent-item-meta">@article.TopicTitle &middot; @article.UpdatedAt.ToString("MMM dd, yyyy")</span>
+                    </div>
+                    <i class="bi bi-chevron-right recent-item-arrow"></i>
+                </a>
+            }
+        </div>
+    }
+}
+
+@code {
+    private DashboardStats? stats;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var topicCount = await db.Topics.CountAsync();
+        var articleCount = await db.Articles.CountAsync();
+        var recentArticles = await db.Articles
+            .OrderByDescending(a => a.UpdatedAt)
+            .Take(5)
+            .Select(a => new RecentArticle
+            {
+                Id = a.Id,
+                Title = a.Title,
+                TopicTitle = a.Topic.Title,
+                UpdatedAt = a.UpdatedAt
+            })
+            .ToListAsync();
+
+        stats = new DashboardStats
+        {
+            TopicCount = topicCount,
+            ArticleCount = articleCount,
+            RecentArticles = recentArticles
+        };
+    }
+
+    private class DashboardStats
+    {
+        public int TopicCount { get; set; }
+        public int ArticleCount { get; set; }
+        public List<RecentArticle> RecentArticles { get; set; } = new();
+    }
+
+    private class RecentArticle
+    {
+        public int Id { get; set; }
+        public string Title { get; set; } = "";
+        public string TopicTitle { get; set; } = "";
+        public DateTime UpdatedAt { get; set; }
+    }
+}

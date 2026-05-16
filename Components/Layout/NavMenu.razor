@@ -1,30 +1,28 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">Dashboard</a>
-    </div>
+﻿<div class="nav-header">
+    <a class="navbar-brand" href="">
+        <i class="bi bi-grid-fill"></i> Dashboard
+    </a>
 </div>
 
 <input type="checkbox" title="Navigation menu" class="navbar-toggler" />
 
 <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
     <nav class="nav flex-column">
+        <div class="nav-section-label">Main</div>
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+                <i class="bi bi-house-fill"></i> Home
             </NavLink>
         </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="search">
-                <span class="bi bi-search-nav-menu" aria-hidden="true"></span> Search
-            </NavLink>
-        </div>
-
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="topics">
-                <span class="bi bi-folder-nav-menu" aria-hidden="true"></span> Topics
+                <i class="bi bi-folder-fill"></i> Topics
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="search">
+                <i class="bi bi-search"></i> Search
             </NavLink>
         </div>
     </nav>
 </div>
-

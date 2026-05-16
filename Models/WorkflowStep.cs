@@ -22,6 +22,12 @@ public class WorkflowStep
     [MaxLength(100)]
     public string? CompletedBy { get; set; }
 
+    public bool IsScriptStep { get; set; }
+
+    public string? Script { get; set; }
+
+    public string? ScriptOutput { get; set; }
+
     public int ArticleFieldId { get; set; }
     public ArticleField ArticleField { get; set; } = null!;
 }
