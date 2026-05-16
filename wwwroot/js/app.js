@@ -1,7 +1,7 @@
 window.DashboardNavigation = (function () {
     var button = null;
     var depth = 1;
-    var suppressNext = 0;
+    var suppressPopstate = false;
     var STORAGE_KEY = '_navDepth';
 
     function init() {
@@ -11,11 +11,6 @@ window.DashboardNavigation = (function () {
         var originalPushState = history.pushState.bind(history);
         history.pushState = function () {
             var result = originalPushState.apply(this, arguments);
-            if (suppressNext > 0) {
-                suppressNext--;
-                updateButton();
-                return result;
-            }
             depth++;
             sessionStorage.setItem(STORAGE_KEY, depth.toString());
             updateButton();
@@ -23,7 +18,8 @@ window.DashboardNavigation = (function () {
         };
 
         window.addEventListener('popstate', function () {
-            if (suppressNext > 0) {
+            if (suppressPopstate) {
+                suppressPopstate = false;
                 updateButton();
                 return;
             }
@@ -39,7 +35,7 @@ window.DashboardNavigation = (function () {
         if (depth <= 1) return;
         depth--;
         sessionStorage.setItem(STORAGE_KEY, depth.toString());
-        suppressNext = 2;
+        suppressPopstate = true;
         history.back();
         updateButton();
     }
